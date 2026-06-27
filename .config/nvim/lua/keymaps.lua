@@ -72,4 +72,30 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   callback = function() vim.hl.on_yank() end,
 })
 
--- vim: ts=2 sts=2 sw=2 et
+-- Move line up and down
+vim.keymap.set('v', 'J', ":m '>+1<CR>gv=gv")
+vim.keymap.set('v', 'K', ":m '<-2<CR>gv=gv")
+
+vim.keymap.set('n', '<C-d>', '<C-d>zz')
+vim.keymap.set('n', '<C-u>', '<C-u>zz')
+
+vim.keymap.set('n', 'n', 'nzzzv')
+vim.keymap.set('n', 'N', 'Nzzzv')
+
+-- Disable Ex mode completely
+vim.keymap.set('n', 'Q', '<nop>')
+
+-- Delete operations go to void register by default
+vim.keymap.set({"n", "v"}, "d", '"_d', { desc = "Delete to void" })
+vim.keymap.set({"n", "v"}, "D", '"_D', { desc = "Delete line to void" })
+vim.keymap.set({"n", "v"}, "c", '"_c', { desc = "Change to void" })
+vim.keymap.set({"n", "v"}, "C", '"_C', { desc = "Change line to void" })
+vim.keymap.set({"n", "v"}, "x", '"_x', { desc = "Delete char to void" })
+
+-- Preserve system clipboard functionality with Leader key
+vim.keymap.set({"n", "v"}, "<leader>d", "+d", { desc = "Cut to system clipboard" })
+vim.keymap.set({"n", "v"}, "<leader>D", "+D", { desc = "Cut line to system clipboard" })
+
+-- Paste over text without overwriting your clipboard register
+vim.keymap.set("x", "p", '"_dP', { desc = "Paste over without losing clipboard" })
+

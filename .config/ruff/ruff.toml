@@ -1,0 +1,10 @@
+line-length = 80
+indent-width = 4
+# Ignore the following linting errors in notebook-like scripts:
+# - E402 (module level import not at top of file)
+# - F704 (`await` statement outside of a function)
+lint.ignore = ["E402", "F704"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

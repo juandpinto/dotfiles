@@ -9,7 +9,7 @@ local function gh(repo) return 'https://github.com/' .. repo end
 vim.pack.add { { src = gh 'nvim-treesitter/nvim-treesitter', version = 'main' } }
 
 -- Ensure basic parsers are installed
-local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+local parsers = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'todotxt' }
 require('nvim-treesitter').install(parsers)
 
 ---@param buf integer
@@ -27,10 +27,10 @@ local function treesitter_try_attach(buf, language)
 
   -- Check if treesitter indentation is available for this language, and if so enable it
   -- in case there is no indent query, the indentexpr will fallback to the vim's built in one
-  local has_indent_query = vim.treesitter.query.get(language, 'indents') ~= nil
+  -- local has_indent_query = vim.treesitter.query.get(language, 'indents') ~= nil
 
   -- Enable treesitter based indentation
-  if has_indent_query then vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()" end
+  -- if has_indent_query then vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()" end
 end
 
 local available_parsers = require('nvim-treesitter').get_available()
@@ -56,4 +56,3 @@ vim.api.nvim_create_autocmd('FileType', {
   end,
 })
 
--- vim: ts=2 sts=2 sw=2 et

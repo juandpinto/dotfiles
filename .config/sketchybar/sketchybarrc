@@ -98,9 +98,9 @@ for mid in $(aerospace list-monitors | cut -c1); do
   done
 done
 
+# Commented-out options: icon="|", icon.padding_left=4
 sketchybar --add item space_separator left \
-  # --set space_separator icon="|" \
-  # icon.padding_left=4 \
+  --set space_separator \
   label.drawing=off \
   background.drawing=off \
   script="$PLUGIN_DIR/space_windows.sh" \
@@ -130,9 +130,11 @@ sketchybar --add item clock right \
   --subscribe volume volume_change \
   --add item battery right \
   --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
-  --subscribe battery system_woke power_source_change \
-  --add item swap e \
-  # --set swap update_freq=20 script="$PLUGIN_DIR/memswap.sh" \
+  --subscribe battery system_woke power_source_change
+
+# --set swap update_freq=20 script="$PLUGIN_DIR/memswap.sh"
+sketchybar --add item swap e \
+  --set swap \
   icon="" \
   label.font="Hack Nerd Font:Italic:13.0" \
   icon.color=0x44FFFFFF \

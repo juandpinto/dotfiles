@@ -68,7 +68,8 @@
     },
     "neo-tree.nvim": {
       "rev": "83e7a2982fd12b9c3d35bc39dd5877cd91a02a61",
-      "src": "https://github.com/nvim-neo-tree/neo-tree.nvim"
+      "src": "https://github.com/nvim-neo-tree/neo-tree.nvim",
+      "version": ">=0.0.0"
     },
     "no-neck-pain.nvim": {
       "rev": "4bc52782524fd50c5658685d584df6fa48fe49f9",
@@ -119,13 +120,37 @@
       "rev": "31e3c38ce9b29781e4422fc0322eb0a21f4e8668",
       "src": "https://github.com/folke/todo-comments.nvim"
     },
+    "todotxt.nvim": {
+      "rev": "bfa83b7d99070a76b70a214d2eb9ed9176ab552e",
+      "src": "https://github.com/phrmendes/todotxt.nvim"
+    },
     "tokyonight.nvim": {
       "rev": "cdc07ac78467a233fd62c493de29a17e0cf2b2b6",
       "src": "https://github.com/folke/tokyonight.nvim"
     },
+    "undotree": {
+      "rev": "6fa6b57cda8459e1e4b2ca34df702f55242f4e4d",
+      "src": "https://github.com/mbbill/undotree"
+    },
+    "vim-slime": {
+      "rev": "2cfdc3b24e7ebaa64f5a1a04b00555600c622b79",
+      "src": "https://github.com/jpalardy/vim-slime"
+    },
+    "vim-sneak": {
+      "rev": "feea86adcfbf8e6b5e71fdd5f4f5736fd8819fdb",
+      "src": "https://github.com/justinmk/vim-sneak"
+    },
+    "vscode.nvim": {
+      "rev": "aa1102a7e15195c9cca22730b09224a7f7745ba8",
+      "src": "https://github.com/mofiqul/vscode.nvim"
+    },
     "which-key.nvim": {
       "rev": "3aab2147e74890957785941f0c1ad87d0a44c15a",
       "src": "https://github.com/folke/which-key.nvim"
+    },
+    "wrapwidth": {
+      "rev": "a766191a1cd24ebb95d669ebd4a440c50d7f4422",
+      "src": "https://github.com/rickhowe/wrapwidth"
     }
   }
 }

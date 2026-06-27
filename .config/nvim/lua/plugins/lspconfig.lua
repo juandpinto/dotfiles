@@ -171,6 +171,7 @@ require('mason').setup {}
 local ensure_installed = vim.tbl_keys(servers or {})
 vim.list_extend(ensure_installed, {
   -- You can add other tools here that you want Mason to install
+  'ty',
 })
 
 require('mason-tool-installer').setup { ensure_installed = ensure_installed }
@@ -180,4 +181,5 @@ for name, server in pairs(servers) do
   vim.lsp.enable(name)
 end
 
--- vim: ts=2 sts=2 sw=2 et
+vim.lsp.enable 'ty'
+
