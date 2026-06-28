@@ -1,7 +1,8 @@
 -- Load plugin modules in order.
 
 -- require 'plugins.gruvbox'
-require 'plugins.vscode'
+-- require 'plugins.vscode'
+require 'plugins.catppuccin'
 require 'plugins.guess-indent'
 require 'plugins.gitsigns'
 require 'plugins.which-key'

@@ -2,16 +2,17 @@ local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 
 local themes = {
-  -- dark  = { scheme = "Dracula+",        background = "#111111" },
-  -- dark  = { scheme = "Catppuccin Mocha", background = "#111111" },
-  -- dark  = { scheme = "Catppuccin Mocha" },
-  -- dark  = { scheme = "Gruvbox Material", background = "#111111" },
-  -- dark  = { scheme = "Gruvbox Dark (Gogh)", background = "#111111" },
-  dark = { scheme = "Vs Code Dark+ (Gogh)" },
-  -- dark  = { scheme = "Gruvbox Dark (Gogh)" },
-  -- light = { scheme = "Catppuccin Latte", background = "#eff1f5" },
-  -- light = { scheme = "Gruvbox (Gogh)", background = "#ffffee" },
-  light = { scheme = "Vs Code Light+ (Gogh)" },
+  -- ── Catppuccin (active) ───────────────────────────────────────────────
+  dark  = { scheme = "Catppuccin Mocha" },
+  light = { scheme = "Catppuccin Latte" },
+  -- ── VS Code (commented out — swap in to reactivate) ──────────────────
+  -- dark  = { scheme = "Vs Code Dark+ (Gogh)" },
+  -- light = { scheme = "Vs Code Light+ (Gogh)" },
+  -- ── Other archived options ────────────────────────────────────────────
+  -- dark  = { scheme = "Dracula+",                 background = "#111111" },
+  -- dark  = { scheme = "Gruvbox Material",         background = "#111111" },
+  -- dark  = { scheme = "Gruvbox Dark (Gogh)",      background = "#111111" },
+  -- light = { scheme = "Gruvbox (Gogh)",           background = "#ffffee" },
 }
 
 local function theme_for_appearance(appearance)
@@ -122,12 +123,19 @@ config.tab_max_width = 25
 --   })
 --
 
+local tabline_theme = (wezterm.gui and wezterm.gui.get_appearance():find("Dark"))
+  and "Catppuccin Mocha"
+  or  "Catppuccin Latte"
+-- To revert to VS Code: replace the two lines above with:
+-- local tabline_theme = (wezterm.gui and wezterm.gui.get_appearance():find("Dark"))
+--   and "Vs Code Dark+ (Gogh)" or "Vs Code Light+ (Gogh)"
+
 local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
 
 tabline.setup({
   options = {
     icons_enabled = true,
-    theme = 'Vs Code Dark+ (Gogh)',
+    theme = tabline_theme,
     -- theme = 'Gruvbox Dark (Gogh)',
     tabs_enabled = true,
     theme_overrides = {},
