@@ -46,8 +46,8 @@ vim.o.linebreak = true
 vim.o.breakindent = true
 
 -- Move through wrapped lines with arrow keys
-vim.keymap.set({'n', 'v'}, '<Up>', 'gk', { noremap = true, silent = true })
-vim.keymap.set({'n', 'v'}, '<Down>', 'gj', { noremap = true, silent = true })
+vim.keymap.set({ 'n', 'v' }, '<Up>', 'gk', { noremap = true, silent = true })
+vim.keymap.set({ 'n', 'v' }, '<Down>', 'gj', { noremap = true, silent = true })
 
 -- Enable undo/redo changes even after closing and reopening a file
 vim.o.undofile = true
@@ -88,18 +88,14 @@ vim.o.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.o.scrolloff = 10
 -- scrolloffpad keeps cursor centered near EOF (not yet in stable as of 0.12.x)
-if vim.fn.exists("+scrolloffpad") == 1 then
-  vim.opt.scrolloffpad = 1
-end
+if vim.fn.exists('+scrolloffpad') == 1 then vim.opt.scrolloffpad = 1 end
 
 -- if performing an operation that would fail due to unsaved changes in the buffer (like `:q`),
 -- instead raise a dialog asking if you wish to save the current file(s)
 -- See `:help 'confirm'`
 vim.o.confirm = true
 
-
-
-
 vim.o.termguicolors = true
 
-vim.o.colorcolumn = "80"
+vim.o.colorcolumn = '80'
+vim.o.laststatus = 3

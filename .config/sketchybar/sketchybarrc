@@ -58,7 +58,7 @@ sketchybar --bar \
   padding_right=0 \
   topmost=off \
   sticky=on \
-  y_offset=0 \
+  y_offset=4 \
   notch_width=200
 
 ##### Defaults #####

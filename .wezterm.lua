@@ -177,8 +177,8 @@ tabline.setup({
 config.window_padding = {
   left = 10,
   right = 10,
-  top = 5,
-  bottom = 2,
+  top = 10,
+  bottom = 0,
 }
 
 return config

@@ -41,7 +41,11 @@ require 'plugins.sneak'
 require 'plugins.vim-slime'
 require 'plugins.undotree'
 require 'plugins.wrapwidth'
-
-
+require 'plugins.markdown'
+require 'plugins.copilot'
+require 'plugins.opencode'
+require 'plugins.yazi'
+require 'plugins.lazygit'
 
 require 'plugins.large_file'
+

@@ -27,6 +27,7 @@ require('conform').setup {
     -- python = { "isort", "black" },
     python = { 'ruff_fix', 'ruff_format' },
     markdown = { 'markdownlint' },
+    lua = { 'stylua' },
     --
     -- You can use 'stop_after_first' to run the first available formatter from the list
     -- javascript = { "prettierd", "prettier", stop_after_first = true },

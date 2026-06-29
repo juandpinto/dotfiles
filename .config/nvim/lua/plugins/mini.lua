@@ -46,6 +46,38 @@ statusline.setup { use_icons = vim.g.have_nerd_font }
 ---@diagnostic disable-next-line: duplicate-set-field
 statusline.section_location = function() return '%2l:%-2v %p%%' end
 
+-- Override the active statusline to include the opencode server status on the
+-- right side.  `require('opencode').statusline()` returns a Nerd Font icon +
+-- server URL when connected (e.g. "󰚩 localhost:42187"), or just the
+-- disconnected icon ("󱚧") when no server is found.  The pcall guards against
+-- the plugin not being loaded yet on initial renders.
+---@diagnostic disable-next-line: duplicate-set-field
+MiniStatusline.active = function()
+  local mode, mode_hl = MiniStatusline.section_mode { trunc_width = 120 }
+  local git           = MiniStatusline.section_git { trunc_width = 75 }
+  local diff          = MiniStatusline.section_diff { trunc_width = 75 }
+  local diagnostics   = MiniStatusline.section_diagnostics { trunc_width = 75 }
+  local lsp           = MiniStatusline.section_lsp { trunc_width = 75 }
+  local filename      = MiniStatusline.section_filename { trunc_width = 140 }
+  local fileinfo      = MiniStatusline.section_fileinfo { trunc_width = 120 }
+  local location      = MiniStatusline.section_location { trunc_width = 75 }
+  local search        = MiniStatusline.section_searchcount { trunc_width = 75 }
+
+  local ok, oc = pcall(function() return require('opencode').statusline() end)
+  local opencode = ok and oc or ''
+
+  return MiniStatusline.combine_groups {
+    { hl = mode_hl,                  strings = { mode } },
+    { hl = 'MiniStatuslineDevinfo',  strings = { git, diff, diagnostics, lsp } },
+    '%<',
+    { hl = 'MiniStatuslineFilename', strings = { filename } },
+    '%=',
+    { hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
+    { hl = 'MiniStatuslineFileinfo', strings = { opencode } },
+    { hl = mode_hl,                  strings = { search, location } },
+  }
+end
+
 -- ... and there is more!
 --  Check out: https://github.com/nvim-mini/mini.nvim
 

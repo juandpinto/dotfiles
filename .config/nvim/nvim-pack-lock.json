@@ -18,6 +18,10 @@
       "rev": "619363c30309d29ffa631e67c8183f2a72caa373",
       "src": "https://github.com/stevearc/conform.nvim"
     },
+    "copilot.vim": {
+      "rev": "a12fd5672110c8aa7e3c8419e28c96943ca179be",
+      "src": "https://github.com/github/copilot.vim"
+    },
     "fidget.nvim": {
       "rev": "82404b196e73a00b1727a91903beef5ddc319d22",
       "src": "https://github.com/j-hui/fidget.nvim"
@@ -45,6 +49,14 @@
     "iron.nvim": {
       "rev": "88cd340407b959f1168af2a6ae5a3d180e6df32c",
       "src": "https://github.com/Vigemus/iron.nvim"
+    },
+    "lazygit.nvim": {
+      "rev": "a04ad0dbc725134edbee3a5eea29290976695357",
+      "src": "https://github.com/kdheepak/lazygit.nvim"
+    },
+    "markdown.nvim": {
+      "rev": "093be911d90de03877f3009de36081c1a6242d51",
+      "src": "https://github.com/tadmccorkle/markdown.nvim"
     },
     "mason-lspconfig.nvim": {
       "rev": "21c5b3ebeaa0412e28096bb0701434c51c1fbf76",
@@ -99,6 +111,11 @@
       "rev": "4916d6592ede8c07973490d9322f187e07dfefac",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
       "version": "'main'"
+    },
+    "opencode.nvim": {
+      "rev": "e43a41f7278680b1b362e8e07609803bf9d01684",
+      "src": "https://github.com/nickjvandyke/opencode.nvim",
+      "version": ">=0.0.0"
     },
     "plenary.nvim": {
       "rev": "74b06c6c75e4eeb3108ec01852001636d85a932b",
@@ -155,6 +172,10 @@
     "wrapwidth": {
       "rev": "a766191a1cd24ebb95d669ebd4a440c50d7f4422",
       "src": "https://github.com/rickhowe/wrapwidth"
+    },
+    "yazi.nvim": {
+      "rev": "36e634c807ab2bef81685a7cd107a107e67e0900",
+      "src": "https://github.com/mikavilpas/yazi.nvim"
     }
   }
 }
