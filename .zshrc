@@ -213,6 +213,3 @@ _fzf_comprun() {
 
 source ~/fzf-git.sh/fzf-git.sh
 
-# ----- Bat (better cat) -----
-
-export BAT_THEME=gruvbox-dark
