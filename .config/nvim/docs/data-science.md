@@ -172,6 +172,10 @@ plt.plot([1, 2, 3])
 
 The REPL inherits cwd from where the shell was when IPython started (usually project root). For files in subdirectories, use `<leader>mcd` to send `os.chdir()` for the current file's directory.
 
+### Visual cell separators
+
+A thin horizontal rule (virtual text, drawn via extmarks) automatically appears above every `# %%` marker in Python buffers, except the first cell. Purely visual—no keybinding, nothing to configure. Implemented in `vim-slime.lua` since it reuses the same cell-marker detection as the REPL commands.
+
 ## Keybinding reference
 
 ### REPL lifecycle

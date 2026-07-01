@@ -56,8 +56,24 @@ end
 -- =========================================
 -- Cell utilities
 -- =========================================
+-- Matches Jupyter-style "# %%" / "#%%" and Databricks-exported
+-- "# COMMAND ----------" cell delimiters.
+local DEFAULT_MARKER = "# %%"
+
 local function is_cell_marker(line)
-  return line:match("^# ?%%") ~= nil  -- matches both "# %%" and "#%%"
+  return line:match("^# ?%%") ~= nil or line:match("^# COMMAND %-%-") ~= nil
+end
+
+-- Fallback for buffers where the cursor sits above/at the very first cell
+-- (no preceding marker to copy), so a new cell still matches the file's
+-- existing delimiter style instead of always defaulting to "# %%".
+local function find_any_marker(buf)
+  local total_lines = vim.api.nvim_buf_line_count(buf)
+  for i = 1, total_lines do
+    local line = vim.api.nvim_buf_get_lines(buf, i - 1, i, false)[1]
+    if is_cell_marker(line) then return line end
+  end
+  return nil
 end
 
 local function get_cell_bounds()
@@ -66,10 +82,12 @@ local function get_cell_bounds()
   local total_lines = vim.api.nvim_buf_line_count(buf)
 
   local cell_start = 1
+  local marker_line = nil
   for i = cursor_line, 1, -1 do
     local line = vim.api.nvim_buf_get_lines(buf, i - 1, i, false)[1]
     if is_cell_marker(line) then
       cell_start = i + 1
+      marker_line = line
       break
     end
   end
@@ -85,7 +103,9 @@ local function get_cell_bounds()
     end
   end
 
-  return cell_start, cell_end, next_cell_line
+  -- Literal marker text of the cell we're in, so a newly appended cell
+  -- reuses the same delimiter style ("# %%" vs "# COMMAND ----------").
+  return cell_start, cell_end, next_cell_line, marker_line or find_any_marker(buf)
 end
 
 local function send_cell(cell_start, cell_end)
@@ -93,6 +113,71 @@ local function send_cell(cell_start, cell_end)
   local lines = vim.api.nvim_buf_get_lines(buf, cell_start - 1, cell_end, false)
   vim.fn["slime#send"](table.concat(lines, "\n") .. "\n")
 end
+
+-- =========================================
+-- Cell separator UI
+-- =========================================
+-- Draws a thin horizontal rule above every cell marker (except the first
+-- line of the file) so cells are visually distinct while scrolling/reading.
+local cell_sep_ns = vim.api.nvim_create_namespace("cell_separator")
+local cell_sep_group = vim.api.nvim_create_augroup("CellSeparator", { clear = true })
+
+local function set_cell_separator_hl()
+  vim.api.nvim_set_hl(0, "CellSeparator", { link = "Comment" })
+end
+set_cell_separator_hl()
+
+local function get_window_text_width(win)
+  win = win or vim.api.nvim_get_current_win()
+  local info = vim.fn.getwininfo(win)[1]
+  local textoff = info and info.textoff or 0
+  return math.max(vim.api.nvim_win_get_width(win) - textoff, 1)
+end
+
+local function render_cell_separators()
+  local buf = vim.api.nvim_get_current_buf()
+  if vim.bo[buf].filetype ~= "python" then return end
+
+  vim.api.nvim_buf_clear_namespace(buf, cell_sep_ns, 0, -1)
+
+  local rule = { string.rep("─", get_window_text_width()), "CellSeparator" }
+  local total_lines = vim.api.nvim_buf_line_count(buf)
+
+  for i = 2, total_lines do
+    local line = vim.api.nvim_buf_get_lines(buf, i - 1, i, false)[1]
+    if is_cell_marker(line) then
+      vim.api.nvim_buf_set_extmark(buf, cell_sep_ns, i - 1, 0, {
+        virt_lines = { { rule } },
+        virt_lines_above = true,
+      })
+    end
+  end
+end
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+  group = cell_sep_group,
+  callback = set_cell_separator_hl,
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+  group = cell_sep_group,
+  pattern = "python",
+  callback = function(args)
+    render_cell_separators()
+    vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "InsertLeave", "BufEnter" }, {
+      buffer = args.buf,
+      group = cell_sep_group,
+      callback = render_cell_separators,
+    })
+  end,
+})
+
+vim.api.nvim_create_autocmd({ "VimResized", "WinScrolled" }, {
+  group = cell_sep_group,
+  callback = function()
+    if vim.bo.filetype == "python" then render_cell_separators() end
+  end,
+})
 
 -- =========================================
 -- Commands
@@ -104,20 +189,23 @@ end, {})
 
 vim.api.nvim_create_user_command("RunPythonCellAndAdvance", function()
   local buf = vim.api.nvim_get_current_buf()
-  local cell_start, cell_end, next_cell_line = get_cell_bounds()
+  local cell_start, cell_end, next_cell_line, marker_line = get_cell_bounds()
   send_cell(cell_start, cell_end)
 
   if next_cell_line then
     vim.api.nvim_win_set_cursor(0, { next_cell_line, 0 })
   else
-    -- Last cell: skip the blank line prefix if the file already ends with one
+    -- Last cell: reuse the file's existing delimiter style (falls back to
+    -- "# %%" for files with no cell markers at all), and skip the blank
+    -- line prefix if the file already ends with one.
+    local new_marker = marker_line or DEFAULT_MARKER
     local total_lines = vim.api.nvim_buf_line_count(buf)
     local last_line = vim.api.nvim_buf_get_lines(buf, total_lines - 1, total_lines, false)[1]
     if last_line ~= '' then
-      vim.api.nvim_buf_set_lines(buf, total_lines, total_lines, false, { "", "# %%", "" })
+      vim.api.nvim_buf_set_lines(buf, total_lines, total_lines, false, { "", new_marker, "" })
       vim.api.nvim_win_set_cursor(0, { total_lines + 2, 0 })
     else
-      vim.api.nvim_buf_set_lines(buf, total_lines, total_lines, false, { "# %%", "" })
+      vim.api.nvim_buf_set_lines(buf, total_lines, total_lines, false, { new_marker, "" })
       vim.api.nvim_win_set_cursor(0, { total_lines + 1, 0 })
     end
   end
@@ -165,9 +253,9 @@ end, { silent = true, desc = 'REPL: focus pane' })
 
 -- Sending code
 vim.keymap.set('n', '<leader>rc', '<cmd>RunPythonCell<CR>',
-  { silent = true, desc = 'REPL: run # %% cell' })
+  { silent = true, desc = 'REPL: run current cell' })
 vim.keymap.set('n', '<leader>rn', '<cmd>RunPythonCellAndAdvance<CR>',
-  { silent = true, desc = 'REPL: run # %% cell and advance' })
+  { silent = true, desc = 'REPL: run current cell and advance' })
 vim.keymap.set('x', '<leader>pv', '<Plug>SlimeRegionSend',
   { desc = 'REPL: send visual selection' })
 vim.keymap.set('n', '<leader>pl', '<Plug>SlimeLineSend',

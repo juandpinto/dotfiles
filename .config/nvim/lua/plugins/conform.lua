@@ -26,8 +26,9 @@ require('conform').setup {
     -- Conform can also run multiple formatters sequentially
     -- python = { "isort", "black" },
     python = { 'ruff_fix', 'ruff_format' },
-    markdown = { 'markdownlint' },
+    markdown = { 'prettier', 'markdownlint' }, -- prettier first for table formatting, markdownlint second as primary
     lua = { 'stylua' },
+    json = { 'prettier' },
     --
     -- You can use 'stop_after_first' to run the first available formatter from the list
     -- javascript = { "prettierd", "prettier", stop_after_first = true },
@@ -35,6 +36,10 @@ require('conform').setup {
   formatters = {
     markdownlint = {
       args = { '--fix', '--config', vim.fn.expand '~/.markdownlint.jsonc', '$FILENAME' },
+    },
+    prettier = {
+      -- Preserve prose line wrapping to avoid conflicts with markdownlint and long-line conventions
+      prepend_args = { '--prose-wrap', 'preserve' },
     },
   },
 }

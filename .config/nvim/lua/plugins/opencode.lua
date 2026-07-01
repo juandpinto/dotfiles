@@ -159,14 +159,14 @@ vim.keymap.set(
 )
 
 vim.keymap.set(
-    { 'n', 'x' },
+    { 'x' },
     'go',
     function() return require('opencode').operator('@this ') end,
     { desc = 'Append range to OpenCode', expr = true }
 )
 vim.keymap.set(
     'n',
-    'goo',
+    'go',
     function() return require('opencode').operator('@this ') .. '_' end,
     { desc = 'Append line to OpenCode', expr = true }
 )

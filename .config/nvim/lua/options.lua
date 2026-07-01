@@ -97,5 +97,8 @@ vim.o.confirm = true
 
 vim.o.termguicolors = true
 
-vim.o.colorcolumn = '80'
+vim.o.colorcolumn = '81'
 vim.o.laststatus = 3
+
+-- Hide end-of-buffer tildes (~)
+vim.o.fillchars = 'eob: '

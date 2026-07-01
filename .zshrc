@@ -224,3 +224,12 @@ function y() {
 
 alias opencode="opencode --port"
 
+# ---- OSC 7: report CWD to tmux and WezTerm ----
+# Keeps #{pane_current_path} accurate so new panes/windows open in the right dir.
+# Also benefits WezTerm's own CWD-aware features.
+_osc7_cwd() {
+  printf '\e]7;file://%s%s\a' "$HOST" "$PWD"
+}
+add-zsh-hook chpwd _osc7_cwd
+_osc7_cwd  # emit once at shell startup
+

@@ -169,10 +169,6 @@
       "rev": "3aab2147e74890957785941f0c1ad87d0a44c15a",
       "src": "https://github.com/folke/which-key.nvim"
     },
-    "wrapwidth": {
-      "rev": "a766191a1cd24ebb95d669ebd4a440c50d7f4422",
-      "src": "https://github.com/rickhowe/wrapwidth"
-    },
     "yazi.nvim": {
       "rev": "36e634c807ab2bef81685a7cd107a107e67e0900",
       "src": "https://github.com/mikavilpas/yazi.nvim"
