@@ -64,7 +64,7 @@ local function close_pad(win)
     -- would. ':quit' falls through correctly in every case: closes just this
     -- window when others exist, closes the tab when it's the last window of
     -- a multi-tab session, or quits Neovim when it's the very last window.
-    pcall(vim.api.nvim_win_call, win, function() vim.cmd 'quit!' end)
+    pcall(vim.api.nvim_win_call, win, function() vim.cmd('quit!') end)
 end
 
 local function open_pad(anchor_win, width)

@@ -1,45 +1,46 @@
-local wezterm = require("wezterm")
+local wezterm = require('wezterm')
 local config = wezterm.config_builder()
 
 local themes = {
-  -- ── Catppuccin (active) ───────────────────────────────────────────────
-  dark  = { scheme = "Catppuccin Mocha" },
-  light = { scheme = "Catppuccin Latte" },
-  -- ── VS Code (commented out — swap in to reactivate) ──────────────────
-  -- dark  = { scheme = "Vs Code Dark+ (Gogh)" },
-  -- light = { scheme = "Vs Code Light+ (Gogh)" },
-  -- ── Other archived options ────────────────────────────────────────────
-  -- dark  = { scheme = "Dracula+",                 background = "#111111" },
-  -- dark  = { scheme = "Gruvbox Material",         background = "#111111" },
-  -- dark  = { scheme = "Gruvbox Dark (Gogh)",      background = "#111111" },
-  -- light = { scheme = "Gruvbox (Gogh)",           background = "#ffffee" },
+    -- ── Catppuccin (active) ───────────────────────────────────────────────
+    dark = { scheme = 'Catppuccin Mocha' },
+    light = { scheme = 'Catppuccin Latte' },
+    -- ── VS Code (commented out — swap in to reactivate) ──────────────────
+    -- dark  = { scheme = "Vs Code Dark+ (Gogh)" },
+    -- light = { scheme = "Vs Code Light+ (Gogh)" },
+    -- ── Other archived options ────────────────────────────────────────────
+    -- dark  = { scheme = "Dracula+",                 background = "#111111" },
+    -- dark  = { scheme = "Gruvbox Material",         background = "#111111" },
+    -- dark  = { scheme = "Gruvbox Dark (Gogh)",      background = "#111111" },
+    -- light = { scheme = "Gruvbox (Gogh)",           background = "#ffffee" },
 }
 
 local function theme_for_appearance(appearance)
-  return appearance:find("Dark") and themes.dark or themes.light
+    return appearance:find('Dark') and themes.dark or themes.light
 end
 
 local function apply_theme(overrides, appearance)
-  local theme = theme_for_appearance(appearance)
-  overrides.color_scheme = theme.scheme
-  overrides.colors = { background = theme.background }
-  return overrides
+    local theme = theme_for_appearance(appearance)
+    overrides.color_scheme = theme.scheme
+    overrides.colors = { background = theme.background }
+    return overrides
 end
 
 -- Set correct scheme immediately on startup / new windows
-if wezterm.gui then
-  apply_theme(config, wezterm.gui.get_appearance())
-end
+if wezterm.gui then apply_theme(config, wezterm.gui.get_appearance()) end
 
 -- React to OS appearance changes at runtime
-wezterm.on("window-config-reloaded", function(window)
-  local overrides = apply_theme(window:get_config_overrides() or {}, window:get_appearance())
-  window:set_config_overrides(overrides)
+wezterm.on('window-config-reloaded', function(window)
+    local overrides = apply_theme(
+        window:get_config_overrides() or {},
+        window:get_appearance()
+    )
+    window:set_config_overrides(overrides)
 end)
 
-config.font = wezterm.font("MesloLGS Nerd Font Mono")
+config.font = wezterm.font('MesloLGS Nerd Font Mono')
 config.font_size = 14
-config.window_decorations = "RESIZE"
+config.window_decorations = 'RESIZE'
 config.window_background_opacity = 0.95
 config.macos_window_background_blur = 10
 
@@ -123,62 +124,68 @@ config.tab_max_width = 25
 --   })
 --
 
-local tabline_theme = (wezterm.gui and wezterm.gui.get_appearance():find("Dark"))
-  and "Catppuccin Mocha"
-  or  "Catppuccin Latte"
+local tabline_theme = (
+    wezterm.gui and wezterm.gui.get_appearance():find('Dark')
+)
+        and 'Catppuccin Mocha'
+    or 'Catppuccin Latte'
 -- To revert to VS Code: replace the two lines above with:
 -- local tabline_theme = (wezterm.gui and wezterm.gui.get_appearance():find("Dark"))
 --   and "Vs Code Dark+ (Gogh)" or "Vs Code Light+ (Gogh)"
 
-local tabline = wezterm.plugin.require("https://github.com/michaelbrusegard/tabline.wez")
+local tabline =
+    wezterm.plugin.require('https://github.com/michaelbrusegard/tabline.wez')
 
 tabline.setup({
-  options = {
-    icons_enabled = true,
-    theme = tabline_theme,
-    -- theme = 'Gruvbox Dark (Gogh)',
-    tabs_enabled = true,
-    theme_overrides = {},
-    section_separators = {
-      left = wezterm.nerdfonts.pl_left_hard_divider,
-      right = wezterm.nerdfonts.pl_right_hard_divider,
+    options = {
+        icons_enabled = true,
+        theme = tabline_theme,
+        -- theme = 'Gruvbox Dark (Gogh)',
+        tabs_enabled = true,
+        theme_overrides = {},
+        section_separators = {
+            left = wezterm.nerdfonts.pl_left_hard_divider,
+            right = wezterm.nerdfonts.pl_right_hard_divider,
+        },
+        component_separators = {
+            left = wezterm.nerdfonts.pl_left_soft_divider,
+            right = wezterm.nerdfonts.pl_right_soft_divider,
+        },
+        tab_separators = {
+            left = wezterm.nerdfonts.pl_left_hard_divider,
+            right = wezterm.nerdfonts.pl_right_hard_divider,
+        },
     },
-    component_separators = {
-      left = wezterm.nerdfonts.pl_left_soft_divider,
-      right = wezterm.nerdfonts.pl_right_soft_divider,
+    sections = {
+        tabline_a = { 'mode' },
+        tabline_b = { 'workspace' },
+        tabline_c = { ' ' },
+        tab_active = {
+            'index',
+            { 'parent', padding = 0 },
+            '/',
+            { 'cwd', padding = { left = 0, right = 1 } },
+            { 'zoomed', padding = 0 },
+        },
+        tab_inactive = {
+            'index',
+            { 'process', padding = { left = 0, right = 1 } },
+        },
+        -- tabline_x = { 'ram', 'cpu' },
+        -- tabline_y = { 'datetime', 'battery' },
+        -- tabline_z = { 'domain' },
+        tabline_y = {},
+        tabline_z = {},
+        tabline_x = { 'ram', 'cpu' },
     },
-    tab_separators = {
-      left = wezterm.nerdfonts.pl_left_hard_divider,
-      right = wezterm.nerdfonts.pl_right_hard_divider,
-    },
-  },
-  sections = {
-    tabline_a = { 'mode' },
-    tabline_b = { 'workspace' },
-    tabline_c = { ' ' },
-    tab_active = {
-      'index',
-      { 'parent', padding = 0 },
-      '/',
-      { 'cwd', padding = { left = 0, right = 1 } },
-      { 'zoomed', padding = 0 },
-    },
-    tab_inactive = { 'index', { 'process', padding = { left = 0, right = 1 } } },
-    -- tabline_x = { 'ram', 'cpu' },
-    -- tabline_y = { 'datetime', 'battery' },
-    -- tabline_z = { 'domain' },
-    tabline_y = { },
-    tabline_z = { },
-    tabline_x = { 'ram', 'cpu' },
-  },
-  extensions = {},
+    extensions = {},
 })
 
 config.window_padding = {
-  left = 10,
-  right = 10,
-  top = 10,
-  bottom = 0,
+    left = 10,
+    right = 10,
+    top = 10,
+    bottom = 0,
 }
 
 return config

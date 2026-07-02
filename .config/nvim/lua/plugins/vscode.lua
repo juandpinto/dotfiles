@@ -1,13 +1,13 @@
-vim.pack.add { 'https://github.com/mofiqul/vscode.nvim' }
+vim.pack.add({ 'https://github.com/mofiqul/vscode.nvim' })
 
-vim.pack.add { 'https:..github.com/f-person/auto-dark-mode.nvim' }
+vim.pack.add({ 'https:..github.com/f-person/auto-dark-mode.nvim' })
 
 local function clear_background()
-  -- Transparent background
-  vim.api.nvim_set_hl(0, "Normal", { bg = "NONE" })
-  vim.api.nvim_set_hl(0, "NormalFloat", { bg = "NONE" })
-  vim.api.nvim_set_hl(0, "FloatBorder", { bg = "NONE" })
-  vim.api.nvim_set_hl(0, "Pmenu", { bg = "NONE" })
+    -- Transparent background
+    vim.api.nvim_set_hl(0, 'Normal', { bg = 'NONE' })
+    vim.api.nvim_set_hl(0, 'NormalFloat', { bg = 'NONE' })
+    vim.api.nvim_set_hl(0, 'FloatBorder', { bg = 'NONE' })
+    vim.api.nvim_set_hl(0, 'Pmenu', { bg = 'NONE' })
 end
 
 -- Clear listchar backgrounds and dim the space/whitespace dots and indent guides.
@@ -25,18 +25,17 @@ end
 -- gruvbox-material supports both dark and light via vim.o.background.
 -- background must be set BEFORE colorscheme (per :help gruvbox-material).
 require('auto-dark-mode').setup({
-  update_interval = 1000,
-  set_dark_mode = function()
-    vim.o.background = 'dark'
-    vim.cmd.colorscheme('vscode')
-    clear_background()
-    -- clear_listchar_backgrounds('dark')
-  end,
-  set_light_mode = function()
-    vim.o.background = 'light'
-    vim.cmd.colorscheme('vscode')
-    clear_background()
-    -- clear_listchar_backgrounds('light')
-  end,
+    update_interval = 1000,
+    set_dark_mode = function()
+        vim.o.background = 'dark'
+        vim.cmd.colorscheme('vscode')
+        clear_background()
+        -- clear_listchar_backgrounds('dark')
+    end,
+    set_light_mode = function()
+        vim.o.background = 'light'
+        vim.cmd.colorscheme('vscode')
+        clear_background()
+        -- clear_listchar_backgrounds('light')
+    end,
 })
-

@@ -1,11 +1,11 @@
 -- [[ Setting options ]]
-require 'options'
+require('options')
 
 -- [[ Basic Keymaps ]]
-require 'keymaps'
+require('keymaps')
 
 -- [[ Set up vim.pack ]]
-require 'pack'
+require('pack')
 
 -- [[ Configure and install plugins ]]
-require 'plugins'
+require('plugins')
