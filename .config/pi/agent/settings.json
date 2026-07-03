@@ -1,0 +1,16 @@
+{
+  "lastChangelogVersion": "0.80.3",
+  "theme": "catppuccin-latte/catppuccin-mocha",
+  "defaultProvider": "github-copilot",
+  "defaultModel": "claude-sonnet-4.6",
+  "defaultThinkingLevel": "high",
+  "showHardwareCursor": true,
+  "editorPaddingX": 2,
+  "outputPad": 1,
+  "treeFilterMode": "default",
+  "packages": [
+    "npm:pi-rewind",
+    "npm:@juicesharp/rpiv-ask-user-question",
+    "git:github.com/otahontas/pi-coding-agent-catppuccin"
+  ]
+}

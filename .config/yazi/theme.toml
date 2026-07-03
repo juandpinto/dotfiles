@@ -7,3 +7,9 @@
 [flavor]
 dark  = "catppuccin-mocha-mauve"
 light = "catppuccin-latte-blue"
+
+# Override the flavor's solid canvas color with `reset` so yazi doesn't emit
+# a background fill, letting WezTerm's native background (opacity + blur)
+# show through. UI chrome (status bar, tabs, mode indicator) keeps its color.
+[app]
+overall = { bg = "reset" }

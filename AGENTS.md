@@ -8,8 +8,8 @@ symlinked into `$HOME`.
 
 - Setup is **manual symlinks**, not stow/chezmoi, and there is no bootstrap
   script in this repo. Don't assume one exists.
-- Top-level dotfiles are symlinked directly: `~/.zshrc`, `~/.p10k.zsh`,
-  `~/.wezterm.lua` -> `~/.dotfiles/<file>`.
+- Top-level dotfiles are symlinked directly: `~/.zshrc`, `~/.wezterm.lua`
+  -> `~/.dotfiles/<file>`.
 - `~/.config` itself is a **real directory**, not a symlink. Each tool under
   `.config/` is symlinked individually, e.g.
   `~/.config/nvim -> ../.dotfiles/.config/nvim`. If you add a new tool config

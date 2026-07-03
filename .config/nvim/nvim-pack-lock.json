@@ -9,6 +9,10 @@
       "rev": "54058b4fe414bd64bd2904a6f8a63f1f14e3d8df",
       "src": "https://github.com/f-person/auto-dark-mode.nvim"
     },
+    "autolist.nvim": {
+      "rev": "339499695d3be8c44aefef1d2516464758957004",
+      "src": "https://github.com/gaoDean/autolist.nvim"
+    },
     "blink.cmp": {
       "rev": "78336bc89ee5365633bcf754d93df01678b5c08f",
       "src": "https://github.com/saghen/blink.cmp",
@@ -121,6 +125,10 @@
       "rev": "74b06c6c75e4eeb3108ec01852001636d85a932b",
       "src": "https://github.com/nvim-lua/plenary.nvim"
     },
+    "smark.nvim": {
+      "rev": "b367db9d6b2514937b6dda7b0fedcbf94a5a8ca8",
+      "src": "https://github.com/yutanagano/smark.nvim"
+    },
     "table-nvim": {
       "rev": "816d251963bf4c8c3d765dab40ebac3c259c7b6d",
       "src": "https://github.com/SCJangra/table-nvim"
@@ -136,6 +144,10 @@
     "telescope.nvim": {
       "rev": "7d324792b7943e4aa16ad007212e6acc6f9fe335",
       "src": "https://github.com/nvim-telescope/telescope.nvim"
+    },
+    "tmux.nvim": {
+      "rev": "32ceaf2793582955ef9576809730878c4d2d9426",
+      "src": "https://github.com/aserowy/tmux.nvim"
     },
     "todo-comments.nvim": {
       "rev": "31e3c38ce9b29781e4422fc0322eb0a21f4e8668",

@@ -46,5 +46,7 @@ require('plugins.copilot')
 require('plugins.opencode')
 require('plugins.yazi')
 require('plugins.lazygit')
+require('plugins.autolist')
+-- require('plugins.tmux')
 
 require('plugins.large_file')

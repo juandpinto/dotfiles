@@ -1,0 +1,6 @@
+^\.git$
+^\.gitignore$
+^\.DS_Store$
+^/README.md$
+^/AGENTS.md$
+^/package-lock.json$
