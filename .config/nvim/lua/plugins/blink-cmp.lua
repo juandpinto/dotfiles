@@ -62,7 +62,11 @@ require('blink.cmp').setup({
     },
 
     sources = {
-        default = { 'lsp', 'path', 'snippets', 'buffer' },
+        -- 'buffer' (word-matching against the open buffer's text) is
+        -- intentionally excluded: it's rarely helpful and, since it's also
+        -- the default fallback for 'lsp'/'path', it was showing up as noisy
+        -- irrelevant one-word suggestions whenever those returned nothing.
+        default = { 'lsp', 'path', 'snippets' },
     },
 
     snippets = { preset = 'luasnip' },

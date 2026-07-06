@@ -13,6 +13,10 @@
       "rev": "339499695d3be8c44aefef1d2516464758957004",
       "src": "https://github.com/gaoDean/autolist.nvim"
     },
+    "beancount.nvim": {
+      "rev": "5a45ae7f1e704c413599416842d2fd821f0b9bc1",
+      "src": "https://github.com/hxueh/beancount.nvim"
+    },
     "blink.cmp": {
       "rev": "78336bc89ee5365633bcf754d93df01678b5c08f",
       "src": "https://github.com/saghen/blink.cmp",

@@ -154,3 +154,9 @@ vim.keymap.set(
     function() vim.wo.wrap = not vim.wo.wrap end,
     { desc = 'Toggle [T]ext [Z]ap wrap' }
 )
+
+-- Move through wrapped lines with arrow keys
+vim.keymap.set({ 'n', 'v' }, '<Up>', 'gk', { noremap = true, silent = true })
+vim.keymap.set({ 'n', 'v' }, '<Down>', 'gj', { noremap = true, silent = true })
+vim.keymap.set('i', '<Up>', '<C-o>gk', { noremap = true, silent = true })
+vim.keymap.set('i', '<Down>', '<C-o>gj', { noremap = true, silent = true })

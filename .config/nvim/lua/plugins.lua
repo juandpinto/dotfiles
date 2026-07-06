@@ -48,5 +48,6 @@ require('plugins.yazi')
 require('plugins.lazygit')
 require('plugins.autolist')
 -- require('plugins.tmux')
+require('plugins.beancount')
 
 require('plugins.large_file')

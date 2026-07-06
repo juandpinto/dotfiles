@@ -21,12 +21,17 @@ setopt hist_verify
 autoload -Uz compinit add-zsh-hook
 compinit
 
+# Force emacs keybindings. Without this, zsh defaults to vi keybindings
+# because EDITOR/VISUAL ("nvim") contains the substring "vi".
+bindkey -e
+
 # Search history based on what's already typed, using the arrow keys
 bindkey '^[[A' history-search-backward
 bindkey '^[[B' history-search-forward
 
-bindkey "[D" backward-word
-bindkey "[C" forward-word
+# Opt-left / Opt-right: move by word
+bindkey '^[[1;3D' backward-word
+bindkey '^[[1;3C' forward-word
 
 # ---- Aliases ----
 alias gls="gls -lGhp --group-directories-first --color=auto"

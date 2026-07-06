@@ -45,10 +45,6 @@ vim.o.wrap = true
 vim.o.linebreak = true
 vim.o.breakindent = true
 
--- Move through wrapped lines with arrow keys
-vim.keymap.set({ 'n', 'v' }, '<Up>', 'gk', { noremap = true, silent = true })
-vim.keymap.set({ 'n', 'v' }, '<Down>', 'gj', { noremap = true, silent = true })
-
 -- Enable undo/redo changes even after closing and reopening a file
 vim.o.undofile = true
 
@@ -97,7 +93,7 @@ vim.o.confirm = true
 
 vim.o.termguicolors = true
 
-vim.o.colorcolumn = '81'
+-- vim.o.colorcolumn = '81'
 vim.o.laststatus = 3
 
 -- Hide end-of-buffer tildes (~)
