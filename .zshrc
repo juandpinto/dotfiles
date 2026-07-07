@@ -108,6 +108,14 @@ function y() {
 	command rm -f -- "$tmp"
 }
 
+# ---- btop wrapper: keep its catppuccin theme in sync with system dark mode ----
+# Starts the dark-mode watcher (self-deduping, self-terminating — see its
+# header comment) alongside btop, mirroring the tmux/sketchybar watchers.
+function btop() {
+	~/.config/btop/scripts/btop_dark_mode_watcher.sh &!
+	command btop "$@"
+}
+
 # ---- OSC 7: report CWD to tmux and WezTerm ----
 # Keeps #{pane_current_path} accurate so new panes/windows open in the right dir.
 # Also benefits WezTerm's own CWD-aware features.

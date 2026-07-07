@@ -141,5 +141,30 @@ vim.api.nvim_create_autocmd('User', {
     end,
 })
 
-require('mini.sessions').setup()
+-- Save and restore sessions (open files, working directory, etc.)
+-- `directory = ''` disables global sessions entirely, so there is nothing
+-- for `autoread` to fall back to when the current directory has no local
+-- session -- it simply does nothing instead of restoring an unrelated
+-- project's session.
+require('mini.sessions').setup({
+    autoread = true,
+    directory = '',
+})
+
+-- Write the *local* session (named after `config.file`, stored in cwd).
+-- Referencing `config.file` instead of hardcoding the name keeps this in
+-- sync if that setting ever changes.
+vim.keymap.set('n', '<leader>ms', function()
+    local sessions = require('mini.sessions')
+    sessions.write(sessions.config.file, { force = true })
+end, { desc = 'Save session for this project' })
+
+-- Quickly switch between recently opened files in the current project
 require('mini.visits').setup()
+
+vim.keymap.set(
+    'n',
+    '<leader>sv',
+    function() require('mini.visits').select_path(nil) end,
+    { desc = 'Recent files (this project)' }
+)

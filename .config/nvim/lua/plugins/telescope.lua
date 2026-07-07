@@ -42,14 +42,18 @@ vim.pack.add(telescope_plugins)
 
 -- See `:help telescope` and `:help telescope.setup()`
 require('telescope').setup({
-    -- You can put your default mappings / updates / etc. in here
-    --  All the info you're looking for is in `:help telescope.setup()`
-    --
-    -- defaults = {
-    --   mappings = {
-    --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-    --   },
-    -- },
+    defaults = {
+        -- dynamic_preview_title = true,
+        path_display = { 'filename_first' },
+        mappings = {
+            i = {
+                ['<C-p>'] = require('telescope.actions.layout').toggle_preview,
+            },
+            n = {
+                ['<C-p>'] = require('telescope.actions.layout').toggle_preview,
+            },
+        },
+    },
     -- pickers = {}
     extensions = {
         ['ui-select'] = { require('telescope.themes').get_dropdown() },

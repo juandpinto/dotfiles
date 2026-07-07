@@ -8,8 +8,8 @@ vim.filetype.add({
 })
 
 require('todotxt').setup({
-    -- todotxt = vim.env.HOME .. "/Documents/notes/todo.txt",
-    -- donetxt = vim.env.HOME .. "/Documents/notes/done.txt",
+    todotxt = vim.env.HOME .. '/Documents/MH/notes/todo.txt',
+    donetxt = vim.env.HOME .. '/Documents/MH/notes/done.txt',
     max_priority = 'C',
     metadata = {
         tag = { sort = 'asc' },
@@ -24,6 +24,14 @@ require('todotxt').setup({
         },
     },
 })
+
+-- Workaround for upstream bug: LSP code action calls `move_done`,
+-- but the actual function is `move_done_tasks`.
+require('todotxt').move_done = require('todotxt').move_done_tasks
+
+-- Workaround for upstream bug: LSP code action calls `move_done`,
+-- but the actual function is `move_done_tasks`.
+require('todotxt').move_done = require('todotxt').move_done_tasks
 
 vim.keymap.set(
     'n',

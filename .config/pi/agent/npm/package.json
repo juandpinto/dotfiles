@@ -2,7 +2,7 @@
   "name": "pi-extensions",
   "private": true,
   "dependencies": {
-    "@vanillagreen/pi-agents-tmux": "^2.6.5",
+    "@vanillagreen/pi-agents-tmux": "^2.6.6",
     "pi-rewind": "^0.5.0"
   }
 }
