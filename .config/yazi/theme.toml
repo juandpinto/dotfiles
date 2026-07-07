@@ -13,3 +13,13 @@ light = "catppuccin-latte-blue"
 # show through. UI chrome (status bar, tabs, mode indicator) keeps its color.
 [app]
 overall = { bg = "reset" }
+
+[git]
+added = { fg = "green" }
+modified = { fg = "blue" }
+deleted  = { fg = "red", bold = true }
+added_sign = "A"
+modified_sign = "M"
+deleted_sign = "D"
+ignored_sign = "."
+unknown_sign = " "

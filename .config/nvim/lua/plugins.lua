@@ -51,3 +51,4 @@ require('plugins.autolist')
 require('plugins.beancount')
 
 require('plugins.large_file')
+require('plugins.smear-cursor')

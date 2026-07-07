@@ -133,6 +133,10 @@
       "rev": "b367db9d6b2514937b6dda7b0fedcbf94a5a8ca8",
       "src": "https://github.com/yutanagano/smark.nvim"
     },
+    "smear-cursor.nvim": {
+      "rev": "9e9378d6ee34bb3782e0e8c63d9ec8ca618b479b",
+      "src": "https://github.com/sphamba/smear-cursor.nvim"
+    },
     "table-nvim": {
       "rev": "816d251963bf4c8c3d765dab40ebac3c259c7b6d",
       "src": "https://github.com/SCJangra/table-nvim"

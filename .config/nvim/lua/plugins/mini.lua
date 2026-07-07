@@ -142,3 +142,4 @@ vim.api.nvim_create_autocmd('User', {
 })
 
 require('mini.sessions').setup()
+require('mini.visits').setup()

@@ -42,7 +42,10 @@ local function buf_read_pre(ev)
     for option, value in pairs(settings.buffer_options) do
         vim.bo[option] = value
     end
-    settings.notify(ev)
+    -- Deferred: if fired synchronously here, Neovim's own "file" info message
+    -- (printed once the read finishes) immediately overwrites this on the
+    -- command line, so the warning never appears to be shown.
+    vim.schedule(function() settings.notify(ev) end)
 end
 
 -- Function to handle BufWinEnter event
@@ -53,6 +56,12 @@ local function buf_win_enter(ev)
     end
 
     if vim.b[ev.buf].is_large_file then
+        -- 'wrap' is a pure window-local option (no distinct global value to
+        -- fall back to later), so remember this window's value the first
+        -- time, to hand back to LargeFileRestore.
+        if vim.b[ev.buf].large_file_prev_wrap == nil then
+            vim.b[ev.buf].large_file_prev_wrap = vim.wo.wrap
+        end
         vim.wo.wrap = false -- disable line wrapping for large files
     else
         vim.wo.wrap = vim.o.wrap -- restore line wrapping setting
@@ -77,3 +86,41 @@ vim.api.nvim_create_autocmd(
     { group = group, callback = buf_win_enter }
 )
 vim.api.nvim_create_autocmd('BufEnter', { group = group, callback = buf_enter })
+
+-- Manually re-enable the features disabled above for the current buffer,
+-- restoring Neovim's normal global defaults.
+vim.api.nvim_create_user_command('LargeFileRestore', function()
+    local buf = vim.api.nvim_get_current_buf()
+    if not vim.b[buf].is_large_file then
+        vim.notify('Not marked as a large file', vim.log.levels.INFO)
+        return
+    end
+
+    -- Restore buffer-local options to Neovim's global default values
+    for option in pairs(settings.buffer_options) do
+        vim.bo[option] =
+            vim.api.nvim_get_option_value(option, { scope = 'global' })
+    end
+    vim.wo.wrap = vim.b[buf].large_file_prev_wrap
+    if vim.wo.wrap == nil then
+        vim.wo.wrap = true -- fallback if we somehow never captured it
+    end
+    vim.b[buf].large_file_prev_wrap = nil
+    -- Clear the marker before the remaining (plugin-dependent) steps below,
+    -- so a failure there doesn't leave the buffer stuck mid-restore.
+    vim.b[buf].is_large_file = false
+
+    -- Re-run FileType autocmds for this buffer's current filetype, since they
+    -- were skipped on load (this is what reattaches treesitter, etc.)
+    vim.api.nvim_exec_autocmds('FileType', { buffer = buf, modeline = false })
+
+    -- Re-enable matchparen if it's currently globally disabled
+    if not vim.g.loaded_matchparen then vim.cmd('DoMatchParen') end
+
+    vim.notify(
+        'Large-file optimizations disabled for this buffer — restored global defaults',
+        vim.log.levels.INFO
+    )
+end, {
+    desc = 'Restore normal Neovim features (treesitter, undo, swapfile, wrap, matchparen) disabled for the current large file',
+})
