@@ -1,3 +1,10 @@
+local todotxt_path = vim.env.HOME .. '/Documents/MH/notes/todo.txt'
+local donetxt_path = vim.env.HOME .. '/Documents/MH/notes/done.txt'
+
+-- Only enable this plugin on machines where the todo.txt file actually
+-- exists (e.g. skip it on machines without the MH notes directory).
+if vim.fn.filereadable(todotxt_path) == 0 then return end
+
 vim.pack.add({ 'https://github.com/phrmendes/todotxt.nvim' })
 
 vim.filetype.add({
@@ -8,8 +15,8 @@ vim.filetype.add({
 })
 
 require('todotxt').setup({
-    todotxt = vim.env.HOME .. '/Documents/MH/notes/todo.txt',
-    donetxt = vim.env.HOME .. '/Documents/MH/notes/done.txt',
+    todotxt = todotxt_path,
+    donetxt = donetxt_path,
     max_priority = 'C',
     metadata = {
         tag = { sort = 'asc' },
@@ -24,10 +31,6 @@ require('todotxt').setup({
         },
     },
 })
-
--- Workaround for upstream bug: LSP code action calls `move_done`,
--- but the actual function is `move_done_tasks`.
-require('todotxt').move_done = require('todotxt').move_done_tasks
 
 -- Workaround for upstream bug: LSP code action calls `move_done`,
 -- but the actual function is `move_done_tasks`.

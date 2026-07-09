@@ -50,7 +50,7 @@ fi
 ##### Bar Appearance #####
 sketchybar --bar \
   position=top \
-  height=36 \
+  height=34 \
   blur_radius=0 \
   color=0x00000000 \
   margin=10 \
@@ -166,7 +166,7 @@ sketchybar --add bracket left_island "${BRACKET_ITEMS[@]}" \
   --set left_island \
   background.color=$ISLAND_BG \
   background.corner_radius=10 \
-  background.height=34 \
+  background.height=32 \
   background.border_color=$ISLAND_BORDER \
   background.border_width=1 \
   background.blur_radius=20
@@ -254,7 +254,7 @@ sketchybar --add bracket right_island media wifi vpn caffeinate cpu gpu volume b
   --set right_island \
   background.color=$ISLAND_BG \
   background.corner_radius=10 \
-  background.height=34 \
+  background.height=32 \
   background.border_color=$ISLAND_BORDER \
   background.border_width=1 \
   background.blur_radius=20

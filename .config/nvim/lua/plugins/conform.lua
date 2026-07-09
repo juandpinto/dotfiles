@@ -29,6 +29,8 @@ require('conform').setup({
         markdown = { 'prettier', 'markdownlint' }, -- prettier first for table formatting, markdownlint second as primary
         lua = { 'stylua' },
         json = { 'prettier' },
+        yaml = { 'prettier' },
+        xml = { 'yq' },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },

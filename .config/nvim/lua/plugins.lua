@@ -52,3 +52,5 @@ require('plugins.beancount')
 
 require('plugins.large_file')
 require('plugins.smear-cursor')
+-- require('plugins.treesitter-context')
+require('plugins.dropbar')

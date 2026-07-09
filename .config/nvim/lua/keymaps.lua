@@ -160,3 +160,9 @@ vim.keymap.set({ 'n', 'v' }, '<Up>', 'gk', { noremap = true, silent = true })
 vim.keymap.set({ 'n', 'v' }, '<Down>', 'gj', { noremap = true, silent = true })
 vim.keymap.set('i', '<Up>', '<C-o>gk', { noremap = true, silent = true })
 vim.keymap.set('i', '<Down>', '<C-o>gj', { noremap = true, silent = true })
+
+-- Split tmux vertically in the current file's directory
+vim.keymap.set('n', '<leader>tv', function()
+  local current_file_dir = vim.fn.expand('%:p:h')
+  vim.fn.system(string.format('tmux split-window -h -c "%s"', current_file_dir))
+end, { desc = 'Tmux split vertical in file dir' })

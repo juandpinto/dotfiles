@@ -98,3 +98,9 @@ vim.o.laststatus = 3
 
 -- Hide end-of-buffer tildes (~)
 vim.o.fillchars = 'eob: '
+
+-- Set the terminal/tmux pane title to the current buffer's filename (or
+-- 'nvim' if the buffer is unnamed), instead of leaving it at tmux's
+-- hostname fallback. See tmux.conf's pane-border-status for the display.
+vim.o.title = true
+vim.o.titlestring = [[%{expand('%:t') != '' ? expand('%:t') : 'nvim'}]]

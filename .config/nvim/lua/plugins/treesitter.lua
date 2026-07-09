@@ -24,6 +24,7 @@ local parsers = {
     'vim',
     'vimdoc',
     'todotxt',
+    'xml',
 }
 require('nvim-treesitter').install(parsers)
 

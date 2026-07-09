@@ -125,6 +125,16 @@ _osc7_cwd() {
 add-zsh-hook chpwd _osc7_cwd
 _osc7_cwd  # emit once at shell startup
 
+# ---- OSC 0: set pane title to "zsh - <cwd>" for tmux's pane-border-status ----
+# Mirrors nvim's own titlestring (see nvim's options.lua); tmux's
+# pane-border-format just displays whichever program last set the pane's
+# title (#T), so this keeps shell panes from falling back to the hostname.
+_pane_title() {
+  printf '\e]0;zsh - %s\a' "${PWD/#$HOME/~}"
+}
+add-zsh-hook precmd _pane_title
+_pane_title  # emit once at shell startup
+
 # ---- Autosuggestions & syntax highlighting ----
 # zsh-syntax-highlighting must be sourced last so it can wrap every
 # widget defined above (fzf, zoxide, autosuggestions, etc).
