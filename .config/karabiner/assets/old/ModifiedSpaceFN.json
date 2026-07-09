@@ -1,0 +1,635 @@
+{
+    "title": "Modified SpaceFN",
+    "maintainers": [
+        "juandpinto"
+    ],
+    "rules": [{
+            "description": "Modified SpaceFN: Space+[ijkl] to Up, Left, Down, Right",
+            "manipulators": [{
+                    "type": "basic",
+                    "from": {
+                        "key_code": "i",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "up_arrow",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "i"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "up_arrow",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "key_code": "k",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "down_arrow",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "k"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "down_arrow",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "key_code": "j",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "left_arrow",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "j"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "left_arrow",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "key_code": "l",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "right_arrow",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "l"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "right_arrow",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                }
+            ]
+        },
+        {
+            "description": "Modified SpaceFN: Space+u to Home, Space+o to End",
+            "manipulators": [{
+                    "type": "basic",
+                    "from": {
+                        "key_code": "u",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "home",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "u"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "home",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "key_code": "o",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "end",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "o"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "end",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                }
+            ]
+        },
+        {
+            "description": "Modified SpaceFN: Space+h to Page Up, Space+n to Page Down",
+            "manipulators": [{
+                    "type": "basic",
+                    "from": {
+                        "key_code": "h",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "page_up",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "h"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "page_up",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "key_code": "n",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "page_down",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "n"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "page_down",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                }
+            ]
+        },
+        {
+            "description": "Modified SpaceFN: Space+Backspace to Forward Delete",
+            "manipulators": [{
+                    "type": "basic",
+                    "from": {
+                        "key_code": "delete_or_backspace",
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                        "key_code": "delete_forward",
+                        "modifiers": []
+                    }],
+                    "conditions": [{
+                        "type": "variable_if",
+                        "name": "ergo_fly_keys_spacebar",
+                        "value": 1
+                    }]
+                },
+                {
+                    "type": "basic",
+                    "from": {
+                        "simultaneous": [{
+                                "key_code": "spacebar"
+                            },
+                            {
+                                "key_code": "delete_or_backspace"
+                            }
+                        ],
+                        "simultaneous_options": {
+                            "key_down_order": "strict",
+                            "key_up_order": "strict_inverse",
+                            "detect_key_down_uninterruptedly": true,
+                            "to_after_key_up": [{
+                                "set_variable": {
+                                    "name": "ergo_fly_keys_spacebar",
+                                    "value": 0
+                                }
+                            }]
+                        },
+                        "modifiers": {
+                            "optional": [
+                                "any"
+                            ]
+                        }
+                    },
+                    "to": [{
+                            "set_variable": {
+                                "name": "ergo_fly_keys_spacebar",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "set_variable": {
+                                "name": "DEBUG simultaneous",
+                                "value": 1
+                            }
+                        },
+                        {
+                            "key_code": "delete_forward",
+                            "modifiers": []
+                        }
+                    ],
+                    "parameters": {
+                        "basic.simultaneous_threshold_milliseconds": 300
+                    }
+                }
+            ]
+        }
+    ]
+}
