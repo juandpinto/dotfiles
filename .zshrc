@@ -135,6 +135,15 @@ _pane_title() {
 add-zsh-hook precmd _pane_title
 _pane_title  # emit once at shell startup
 
+# ---- OSC 133: mark shell prompts for tmux's next-prompt/previous-prompt ----
+# tmux's copy-mode ]/[ bindings (see tmux.conf) jump between prompts, but only
+# if the shell emits this escape before drawing each prompt. Starship doesn't
+# emit it itself, so we do it ourselves, same pattern as the OSC 0/7 hooks above.
+_osc133_prompt_mark() {
+  printf '\e]133;A\e\\'
+}
+add-zsh-hook precmd _osc133_prompt_mark
+
 # ---- Autosuggestions & syntax highlighting ----
 # zsh-syntax-highlighting must be sourced last so it can wrap every
 # widget defined above (fzf, zoxide, autosuggestions, etc).

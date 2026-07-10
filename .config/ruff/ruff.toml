@@ -3,6 +3,9 @@ indent-width = 4
 # Ignore the following linting errors in notebook-like scripts:
 # - E402 (module level import not at top of file)
 # - F704 (`await` statement outside of a function)
+# Enable isort-equivalent import sorting/organizing (I) on top of ruff's
+# default rule set (E4, E7, E9, F).
+lint.extend-select = ["I"]
 lint.ignore = ["E402", "F704"]
 
 [format]
