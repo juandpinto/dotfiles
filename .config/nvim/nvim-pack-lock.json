@@ -26,9 +26,9 @@
       "rev": "619363c30309d29ffa631e67c8183f2a72caa373",
       "src": "https://github.com/stevearc/conform.nvim"
     },
-    "copilot.vim": {
-      "rev": "a12fd5672110c8aa7e3c8419e28c96943ca179be",
-      "src": "https://github.com/github/copilot.vim"
+    "copilot.lua": {
+      "rev": "d521d3959f81f4fa58870ed329754f1dd5057511",
+      "src": "https://github.com/zbirenbaum/copilot.lua"
     },
     "dropbar.nvim": {
       "rev": "808ba31cde89aec8833e9789f5e04557cd31c9e1",
@@ -128,14 +128,13 @@
       "rev": "b311b30818951d01f7b4bf650521b868b3fece16",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter-context"
     },
-    "opencode.nvim": {
-      "rev": "e43a41f7278680b1b362e8e07609803bf9d01684",
-      "src": "https://github.com/nickjvandyke/opencode.nvim",
-      "version": ">=0.0.0"
-    },
     "plenary.nvim": {
       "rev": "74b06c6c75e4eeb3108ec01852001636d85a932b",
       "src": "https://github.com/nvim-lua/plenary.nvim"
+    },
+    "sidekick.nvim": {
+      "rev": "208e1c5b8170c01fd1d07df0139322a76479b235",
+      "src": "https://github.com/folke/sidekick.nvim"
     },
     "smark.nvim": {
       "rev": "b367db9d6b2514937b6dda7b0fedcbf94a5a8ca8",

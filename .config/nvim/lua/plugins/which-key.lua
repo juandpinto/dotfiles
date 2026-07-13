@@ -11,6 +11,11 @@ require('which-key').setup({
         { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } }, -- Enable gitsigns recommended keymaps first
+        { '<leader>a', group = '[A]I CLI (sidekick)', mode = { 'n', 'v' } },
+        { '<leader>r', group = '[R]EPL' }, -- vim-slime
+        { '<leader>p', group = 'RE[P]L Send', mode = { 'n', 'v' } }, -- vim-slime
+        { '<leader>c', group = 'List [C]ycle' }, -- autolist
+        { 's', group = '[S]urround' }, -- mini.surround
         { 'gr', group = 'LSP Actions', mode = { 'n' } },
     },
 })

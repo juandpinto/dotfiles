@@ -1,6 +1,9 @@
 # ---- Homebrew ----
 export PATH="/opt/homebrew/bin:$PATH"
 
+# ---- uv-installed tools (e.g. ruff via `uv tool install`) ----
+export PATH="$HOME/.local/bin:$PATH"
+
 # ---- Environment ----
 export VISUAL="nvim"
 export EDITOR="nvim"

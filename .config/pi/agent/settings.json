@@ -10,8 +10,7 @@
   "treeFilterMode": "default",
   "packages": [
     "npm:pi-rewind",
-    "git:github.com/otahontas/pi-coding-agent-catppuccin",
-    "npm:@vanillagreen/pi-agents-tmux"
+    "git:github.com/otahontas/pi-coding-agent-catppuccin"
   ],
   "hideThinkingBlock": false
 }

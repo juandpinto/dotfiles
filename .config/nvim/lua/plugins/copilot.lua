@@ -1,13 +1,18 @@
-vim.pack.add({ 'https://github.com/github/copilot.vim' })
+vim.pack.add({ 'https://github.com/zbirenbaum/copilot.lua' })
 
--- require("copilot").setup( {} )
-
--- Disable the default <Tab> accept mapping (it collides with
--- autolist.nvim's <Tab>/<S-Tab> list-indent mappings) and use <C-l>
--- to accept suggestions instead.
-vim.g.copilot_no_tab_map = true
-vim.keymap.set('i', '<C-l>', 'copilot#Accept("\\<CR>")', {
-    expr = true,
-    replace_keycodes = false,
-    desc = 'Accept Copilot suggestion',
+require('copilot').setup({
+    suggestion = {
+        enabled = true,
+        auto_trigger = true, -- ghost text as you type, matching previous copilot.vim behavior
+        keymap = {
+            -- <Tab> collides with autolist.nvim's list-indent mapping, so accept
+            -- suggestions with <C-l> instead (same key as before the switch).
+            accept = '<C-l>',
+            accept_word = '<C-Right>', -- partial accept, one word at a time
+            accept_line = false,
+            next = '<M-]>',
+            prev = '<M-[>',
+            dismiss = '<C-]>',
+        },
+    },
 })

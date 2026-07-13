@@ -66,6 +66,17 @@ require('beancount').setup({
     },
 })
 
+-- beancount.setup() above calls `vim.diagnostic.config()` *globally*
+-- (not scoped to its own namespace), which clobbers the virtual_text/etc.
+-- preferences set in keymaps.lua for every filetype, not just beancount
+-- buffers. Restore the global defaults, then re-apply virtual text scoped
+-- to beancount's own diagnostic namespace so only .bean buffers keep it.
+vim.diagnostic.config({ virtual_text = false })
+vim.diagnostic.config(
+    { virtual_text = true },
+    vim.api.nvim_create_namespace('beancount-diagnostics')
+)
+
 -- Register beancount's blink.cmp completion source (accounts, payees,
 -- narrations, commodities, tags, links). beancount.nvim only wires this up
 -- automatically for lazy.nvim's dependency-opts pattern, which this

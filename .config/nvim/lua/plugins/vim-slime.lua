@@ -279,7 +279,7 @@ vim.keymap.set(
 )
 vim.keymap.set(
     'n',
-    '<leader>cl',
+    '<leader>rl',
     function() vim.fn['slime#send']('\x0c') end,
     { silent = true, desc = 'REPL: clear screen' }
 )
@@ -338,7 +338,7 @@ vim.keymap.set(
     function() vim.fn['slime#send']('show_fig(preview=True)\n') end,
     { silent = true, desc = 'REPL: open figure in Preview' }
 )
-vim.keymap.set('n', '<leader>mcd', function()
+vim.keymap.set('n', '<leader>pd', function()
     local dir = vim.fn.expand('%:p:h')
     vim.fn['slime#send']("import os; os.chdir('" .. dir .. "')\n")
 end, { silent = true, desc = 'REPL: cd to current file directory' })
