@@ -44,6 +44,10 @@ config.window_decorations = 'RESIZE'
 config.window_background_opacity = 0.95
 config.macos_window_background_blur = 10
 
+-- Enable the Kitty graphics protocol so nvim's image.nvim can render
+-- images inline (e.g. in markdown files). See ~/.config/nvim/lua/plugins/image.lua.
+config.enable_kitty_graphics = true
+
 -- Keymaps
 -- config.leader = { key = "b", mods = "CTRL", timeout_milliseconds = 2000 }
 --
