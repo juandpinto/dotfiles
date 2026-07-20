@@ -84,6 +84,64 @@ symlinked into `$HOME`.
   invoked relative to this repo (e.g. `MD013`/line-length and several other
   rules are disabled; `MD007` indent is 4).
 
+## Auto dark/light mode syncing
+
+- `bin/appearance-watcher.sh` is the **single source of truth** for "is
+  macOS in dark or light mode right now". It's the consolidation of what
+  used to be four independent tools (sketchybar, tmux, btop, nvim) each
+  running their own `defaults read -g AppleInterfaceStyle` polling loop on
+  a different interval — same detection repeated four times, with
+  inconsistent lifecycle management (pidfile locks, `nohup`, tied to
+  whichever app happened to launch it).
+- It runs as a LaunchAgent
+  (`Library/LaunchAgents/com.juanpinto.appearance-watcher.plist`, stowed
+  into the real, pre-existing `~/Library/LaunchAgents/` the same way
+  `~/.config/pi/agent` tree-folds — other apps' plists live there too, e.g.
+  sketchybar's own brew-managed one), so it's one long-lived,
+  auto-restarting process (`KeepAlive` + `RunAtLoad`) instead of scripts
+  bootstrapped ad hoc from each tool's own config.
+- On every detected change it writes `dark`/`light` to `~/.cache/appearance`
+  (untracked — pure runtime state, not meant to be versioned) and reacts
+  directly for tools that don't have their own way to pick up a live
+  change. Logs go to `~/Library/Logs/appearance-watcher.{out,err}.log`.
+- **To add auto-dark-mode support to a new tool**, first figure out which
+  category it falls into, since each needs a different integration in
+  `react()` in `bin/appearance-watcher.sh` (or, for nvim-like cases, its own
+  config):
+  1. **Tool re-derives its own colors fresh on reload/restart** (sketchybar,
+     tmux): just trigger that reload/restart from `react()`. No shared
+     state needed — the one-shot `defaults read` each already does at its
+     own load time is fine as-is, it just needs to be re-triggered on
+     change instead of continuously repeated.
+  2. **Tool only reads a persisted config value passively on startup, with
+     no live-reload hook of its own** (btop): `react()` must rewrite that
+     config value **unconditionally** — not gated on whether the tool is
+     currently running — so a fresh launch later still picks up the right
+     theme. Only gate the *live* reload signal (e.g. a `SIGUSR2`-style hot
+     reload) on the process actually existing.
+  3. **Tool is a long-running scriptable process that can read a file
+     itself** (nvim, see `.config/nvim/lua/plugins/catppuccin.lua`): have
+     it read `~/.cache/appearance` directly instead of re-invoking
+     `defaults read` — a plain file read is far cheaper than spawning a
+     subprocess on a timer, and keeps it on the same single detection point
+     as everything else. Pair a lightweight polling timer (as a background
+     safety net) with a focus/refocus event (`FocusGained` for nvim, which
+     requires `focus-events on` in `tmux.conf` — already set via the
+     `tmux-sensible` plugin) as a guaranteed correction point: without it, a
+     change that happens while the tool is unfocused/backgrounded can sit
+     uncorrected until the next poll tick.
+- **Not** wired into this: pi's own theme-following
+  (`npm:@mjakl/pi-dark-or-light` in `.config/pi/agent/settings.json`). It's
+  a separate Node/TS extension ecosystem with its own well-designed
+  detection chain (native macOS `osascript` first, then tmux's own
+  `#{client_theme}`, `DARK_MODE` env, OSC 11, `COLORFGBG`) — bridging it to
+  read the shared state file would mean patching a third-party package, and
+  the effort wasn't worth it given it already works reliably on its own.
+- Debugging: `launchctl list | grep appearance-watcher` for status; after
+  editing the script, restart it with `launchctl bootout
+  gui/$(id -u)/com.juanpinto.appearance-watcher` followed by `launchctl
+  bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.juanpinto.appearance-watcher.plist`.
+
 ## Existing skills (don't duplicate their guidance here)
 
 `.config/opencode/skills/` already covers: `documentation` (Markdown style

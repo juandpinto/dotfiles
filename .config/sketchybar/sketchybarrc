@@ -259,11 +259,5 @@ sketchybar --add bracket right_island media wifi vpn caffeinate cpu gpu volume b
   background.border_width=1 \
   background.blur_radius=20
 
-##### Launch dark mode watcher (persists across reloads) #####
-if ! pgrep -qf "dark_mode_watcher.sh"; then
-  nohup "$PLUGIN_DIR/dark_mode_watcher.sh" >/dev/null 2>&1 &
-  disown
-fi
-
 ##### Force all scripts to run the first time (never do this in a script) #####
 sketchybar --update

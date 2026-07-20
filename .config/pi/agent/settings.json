@@ -1,6 +1,6 @@
 {
-  "lastChangelogVersion": "0.80.6",
-  "theme": "catppuccin-latte/catppuccin-mocha",
+  "lastChangelogVersion": "0.80.9",
+  "theme": "catppuccin-latte-custom",
   "defaultProvider": "github-copilot",
   "defaultModel": "claude-sonnet-5",
   "defaultThinkingLevel": "high",
@@ -10,7 +10,12 @@
   "treeFilterMode": "default",
   "packages": [
     "npm:pi-rewind",
-    "git:github.com/otahontas/pi-coding-agent-catppuccin"
+    "git:github.com/otahontas/pi-coding-agent-catppuccin",
+    "npm:@mjakl/pi-dark-or-light"
   ],
+  "dark-or-light": {
+    "dark": "catppuccin-mocha",
+    "light": "catppuccin-latte-custom"
+  },
   "hideThinkingBlock": false
 }

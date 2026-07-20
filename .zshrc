@@ -11,6 +11,17 @@ export EDITOR="nvim"
 # Define location of pi agent configs
 export PI_CODING_AGENT_DIR="$HOME/.config/pi/agent"
 
+# Hint the terminal's light/dark background via COLORFGBG. Apps like pi's
+# theme auto-detection query the terminal directly (OSC 11 / DSR), but that
+# round-trip is unreliable through tmux and silently falls back to "dark"
+# when it fails/times out. Setting COLORFGBG from the actual macOS appearance
+# gives those tools a fast, correct fallback instead.
+if defaults read -g AppleInterfaceStyle &>/dev/null; then
+    export COLORFGBG="15;0" # dark background
+else
+    export COLORFGBG="0;15" # light background
+fi
+
 # ---- History ----
 HISTFILE=$HOME/.zhistory
 SAVEHIST=1000
@@ -115,7 +126,6 @@ function y() {
 # Starts the dark-mode watcher (self-deduping, self-terminating — see its
 # header comment) alongside btop, mirroring the tmux/sketchybar watchers.
 function btop() {
-	~/.config/btop/scripts/btop_dark_mode_watcher.sh &!
 	command btop "$@"
 }
 
