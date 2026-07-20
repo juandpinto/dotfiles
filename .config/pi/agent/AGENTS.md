@@ -8,3 +8,8 @@
 - Never commit secrets, tokens, or credentials. Flag it if a change risks exposing something sensitive.
 - Confirm before destructive or hard-to-reverse operations (e.g. `rm -rf`, overwriting files, force-push).
 - Use `curl` for web/research lookups (docs, Google/Scholar, general info gathering), and `gh` for anything involving GitHub repos, issues, or PRs.
+
+## Skills
+
+- When writing, editing, or running any Python (`.py`) file, make sure you're following the conventions laid out in the `python` skill — don't rely on inferring these from context.
+- When writing or editing any Markdown documentation, make sure you're following the conventions laid out in the `documentation` skill — don't rely on inferring these from context.

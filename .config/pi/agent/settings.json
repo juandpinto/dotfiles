@@ -1,6 +1,6 @@
 {
-  "lastChangelogVersion": "0.80.9",
-  "theme": "catppuccin-latte-custom",
+  "lastChangelogVersion": "0.80.10",
+  "theme": "catppuccin-mocha",
   "defaultProvider": "github-copilot",
   "defaultModel": "claude-sonnet-5",
   "defaultThinkingLevel": "high",
