@@ -166,3 +166,50 @@ vim.keymap.set('n', '<leader>tv', function()
   local current_file_dir = vim.fn.expand('%:p:h')
   vim.fn.system(string.format('tmux split-window -h -c "%s"', current_file_dir))
 end, { desc = 'Tmux split vertical in file dir' })
+
+-- Insert a new commented line below/above, matching the built-in `gc`/`gcc`
+-- naming convention (`gco`/`gcO` from Comment.nvim, not built into Neovim).
+-- Uses 'commentstring' directly and copies the current line's indentation.
+local function comment_new_line(above)
+    return function()
+        local cs = vim.bo.commentstring
+        if cs == '' or not cs:find('%%s') then return end
+
+        local left, right = cs:match('^(.-)%%s(.-)$')
+        left, right = vim.trim(left), vim.trim(right)
+
+        local indent = vim.api.nvim_get_current_line():match('^%s*')
+        local before = indent .. left .. (left ~= '' and ' ' or '')
+        local after = right ~= '' and (' ' .. right) or ''
+        local text = before .. after
+
+        local lnum = vim.api.nvim_win_get_cursor(0)[1]
+        local at = above and (lnum - 1) or lnum
+        vim.api.nvim_buf_set_lines(0, at, at, false, { text })
+
+        if right == '' then
+            -- No right-hand delimiter: cursor belongs at the true end of
+            -- the line. Normal mode can't represent "one past the last
+            -- character" as a column (it gets silently clamped back by
+            -- one), so append instead of positioning + plain startinsert.
+            vim.api.nvim_win_set_cursor(0, { at + 1, 0 })
+            vim.cmd.startinsert({ bang = true })
+        else
+            vim.api.nvim_win_set_cursor(0, { at + 1, #before })
+            vim.cmd.startinsert()
+        end
+    end
+end
+
+vim.keymap.set(
+    'n',
+    'gco',
+    comment_new_line(false),
+    { desc = 'Add comment line below' }
+)
+vim.keymap.set(
+    'n',
+    'gcO',
+    comment_new_line(true),
+    { desc = 'Add comment line above' }
+)
