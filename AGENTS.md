@@ -104,6 +104,18 @@ symlinked into `$HOME`.
   (untracked — pure runtime state, not meant to be versioned) and reacts
   directly for tools that don't have their own way to pick up a live
   change. Logs go to `~/Library/Logs/appearance-watcher.{out,err}.log`.
+- The plist's `ProgramArguments` invokes `/bin/bash -c 'exec
+  "$HOME/.dotfiles/bin/appearance-watcher.sh" >> ... 2>> ...'` rather than a
+  literal absolute path, and deliberately has no `StandardOutPath`/
+  `StandardErrorPath` keys (those don't expand `$HOME` or any other
+  variable, so they'd have to hardcode a username). This keeps the plist
+  portable across machines with different usernames sharing this same repo
+  — confirmed launchd sets `$HOME`/`$USER` correctly for GUI-domain agents
+  even without them in `EnvironmentVariables`. Don't hardcode `/Users/<name>`
+  anywhere in this plist again; a previous version did and the agent
+  silently failed to load on any machine whose username didn't match,
+  which broke nvim's appearance sync (see `catppuccin.lua`) since
+  `~/.cache/appearance` was never created.
 - **To add auto-dark-mode support to a new tool**, first figure out which
   category it falls into, since each needs a different integration in
   `react()` in `bin/appearance-watcher.sh` (or, for nvim-like cases, its own

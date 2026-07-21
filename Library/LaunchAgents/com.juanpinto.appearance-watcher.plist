@@ -6,7 +6,9 @@
 	<string>com.juanpinto.appearance-watcher</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Users/juanpinto/.dotfiles/bin/appearance-watcher.sh</string>
+		<string>/bin/bash</string>
+		<string>-c</string>
+		<string>exec "$HOME/.dotfiles/bin/appearance-watcher.sh" >> "$HOME/Library/Logs/appearance-watcher.out.log" 2>> "$HOME/Library/Logs/appearance-watcher.err.log"</string>
 	</array>
 	<key>EnvironmentVariables</key>
 	<dict>
@@ -19,9 +21,5 @@
 	<true/>
 	<key>ProcessType</key>
 	<string>Background</string>
-	<key>StandardOutPath</key>
-	<string>/Users/juanpinto/Library/Logs/appearance-watcher.out.log</string>
-	<key>StandardErrorPath</key>
-	<string>/Users/juanpinto/Library/Logs/appearance-watcher.err.log</string>
 </dict>
 </plist>
