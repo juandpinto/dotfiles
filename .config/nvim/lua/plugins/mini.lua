@@ -100,11 +100,15 @@ vim.keymap.set('n', '<leader>e', function()
     MiniFiles.reveal_cwd()
 end, { desc = 'Open Mini Files' })
 
--- Set focused directory as current working directory
+-- Set focused directory as current working directory.
+-- Scope is forced to 'global' -- otherwise `chdir()` silently reuses
+-- whatever scope (window/tab) happens to already be active, which lets a
+-- stray `:tcd`/`:lcd` get "stuck" on a tab and then persist forever via
+-- `mini.sessions` (mksession bakes it in, autoread replays it next time).
 local set_cwd = function()
     local path = (MiniFiles.get_fs_entry() or {}).path
     if path == nil then return vim.notify('Cursor is not on valid entry') end
-    vim.fn.chdir(vim.fs.dirname(path))
+    vim.fn.chdir(vim.fs.dirname(path), 'global')
 end
 
 -- Yank in register full path of entry under cursor
