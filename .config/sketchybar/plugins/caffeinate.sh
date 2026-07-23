@@ -1,8 +1,8 @@
 #!/bin/sh
 
 DARK=$(defaults read -g AppleInterfaceStyle 2>/dev/null)
-# Catppuccin mauve: mocha #cba6f7 / latte #8839ef
-MAUVE=$([ "$DARK" = "Dark" ] && echo "0xffcba6f7" || echo "0xff8839ef")
+# Everforest purple: dark #d699b6 / light #df69ba
+MAUVE=$([ "$DARK" = "Dark" ] && echo "0xffd699b6" || echo "0xffdf69ba")
 
 get_caffeinate_pid() {
   # pmset reads kernel power assertions — catches any caffeinate, not just bar-started ones

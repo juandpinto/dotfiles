@@ -2,13 +2,18 @@ local wezterm = require('wezterm')
 local config = wezterm.config_builder()
 
 local themes = {
-    -- ── Catppuccin (active) ───────────────────────────────────────────────
-    dark = { scheme = 'Catppuccin Mocha' },
-    light = { scheme = 'Catppuccin Latte' },
+    -- ── Everforest (active) — same 'medium' contrast level used in nvim and
+    -- tmux (this installed WezTerm version only bundles the plain Gogh
+    -- export, not the newer Medium/Hard/Soft-suffixed variants, but the
+    -- plain one already matches the medium-contrast palette) ─────────
+    dark = { scheme = 'Everforest Dark (Gogh)' },
+    light = { scheme = 'Everforest Light (Gogh)' },
     -- ── VS Code (commented out — swap in to reactivate) ──────────────────
     -- dark  = { scheme = "Vs Code Dark+ (Gogh)" },
     -- light = { scheme = "Vs Code Light+ (Gogh)" },
     -- ── Other archived options ────────────────────────────────────────────
+    -- dark  = { scheme = "Catppuccin Mocha" },
+    -- light = { scheme = "Catppuccin Latte" },
     -- dark  = { scheme = "Dracula+",                 background = "#111111" },
     -- dark  = { scheme = "Gruvbox Material",         background = "#111111" },
     -- dark  = { scheme = "Gruvbox Dark (Gogh)",      background = "#111111" },
@@ -41,7 +46,7 @@ end)
 config.font = wezterm.font('MesloLGS Nerd Font Mono')
 config.font_size = 14
 config.window_decorations = 'RESIZE'
-config.window_background_opacity = 0.95
+config.window_background_opacity = 0.93
 config.macos_window_background_blur = 10
 
 -- Enable the Kitty graphics protocol so nvim's image.nvim can render
@@ -131,8 +136,8 @@ config.tab_max_width = 25
 local tabline_theme = (
     wezterm.gui and wezterm.gui.get_appearance():find('Dark')
 )
-        and 'Catppuccin Mocha'
-    or 'Catppuccin Latte'
+        and 'Everforest Dark (Gogh)'
+    or 'Everforest Light (Gogh)'
 -- To revert to VS Code: replace the two lines above with:
 -- local tabline_theme = (wezterm.gui and wezterm.gui.get_appearance():find("Dark"))
 --   and "Vs Code Dark+ (Gogh)" or "Vs Code Light+ (Gogh)"

@@ -1,12 +1,12 @@
-# Yazi theme — Catppuccin with auto dark/light switching via the flavor system.
+# Yazi theme — Everforest with auto dark/light switching via the flavor system.
 # Yazi reads the terminal's dark/light mode to pick the right flavor.
 #
 # To revert to manual selection, comment out [flavor] below and instead copy
 # one of the files from flavors/*/ directly to this file as your theme.toml.
 
 [flavor]
-dark  = "catppuccin-mocha-mauve"
-light = "catppuccin-latte-blue"
+dark  = "everforest-dark"
+light = "everforest-light"
 
 # Override the flavor's solid canvas color with `reset` so yazi doesn't emit
 # a background fill, letting WezTerm's native background (opacity + blur)

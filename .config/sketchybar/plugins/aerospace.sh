@@ -2,23 +2,26 @@
 
 DARK=$(defaults read -g AppleInterfaceStyle 2>/dev/null)
 
-# Per-space Catppuccin accent colors — mocha (light) / latte (dark/saturated)
+# Per-space Everforest accent colors — dark (light pastels) / light
+# (saturated). Everforest only has 7 named accents vs Catppuccin's 9 used
+# here, so spaces 7-9 (lavender/mauve/pink) all reuse the purple accent.
 case "$1" in
-  1) DK="0xfff38ba8"; LT="0xffd20f39" ;;  # red
-  2) DK="0xfffab387"; LT="0xfffe640b" ;;  # peach
-  3) DK="0xfff9e2af"; LT="0xffdf8e1d" ;;  # yellow
-  4) DK="0xffa6e3a1"; LT="0xff40a02b" ;;  # green
-  5) DK="0xff94e2d5"; LT="0xff179299" ;;  # teal
-  6) DK="0xff89b4fa"; LT="0xff1e66f5" ;;  # blue
-  7) DK="0xffb4befe"; LT="0xff7287fd" ;;  # lavender
-  8) DK="0xffcba6f7"; LT="0xff8839ef" ;;  # mauve
-  9) DK="0xfff5c2e7"; LT="0xffea76cb" ;;  # pink
-  *) DK="0xffcdd6f4"; LT="0xff4c4f69" ;;  # text fallback
+  1) DK="0xffe67e80"; LT="0xfff85552" ;;  # red
+  2) DK="0xffe69875"; LT="0xfff57d26" ;;  # orange
+  3) DK="0xffdbbc7f"; LT="0xffdfa000" ;;  # yellow
+  4) DK="0xffa7c080"; LT="0xff8da101" ;;  # green
+  5) DK="0xff83c092"; LT="0xff35a77c" ;;  # aqua
+  6) DK="0xff7fbbb3"; LT="0xff3a94c5" ;;  # blue
+  7) DK="0xffd699b6"; LT="0xffdf69ba" ;;  # purple
+  8) DK="0xffd699b6"; LT="0xffdf69ba" ;;  # purple
+  9) DK="0xffd699b6"; LT="0xffdf69ba" ;;  # purple
+  *) DK="0xffd3c6aa"; LT="0xff5c6a72" ;;  # fg fallback
 esac
 
 SPACE_COLOR=$([ "$DARK" = "Dark" ] && echo "$DK" || echo "$LT")
-# Active pill text: mocha accents are light → dark base; latte accents are dark → white
-PILL_TEXT=$([ "$DARK" = "Dark" ] && echo "0xff1e1e2e" || echo "0xffffffff")
+# Active pill text: dark-mode accents are light pastels → dark base; light-
+# mode accents are saturated/dark → white
+PILL_TEXT=$([ "$DARK" = "Dark" ] && echo "0xff2d353b" || echo "0xffffffff")
 
 if [ "$1" = "$FOCUSED_WORKSPACE" ]; then
   sketchybar --set $NAME \

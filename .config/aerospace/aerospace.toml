@@ -13,7 +13,10 @@ after-login-command = []
 # 'after-startup-command' is run after 'after-login-command'
 # Available commands : https://nikitabobko.github.io/AeroSpace/commands
 after-startup-command = [
-  'exec-and-forget borders active_color=0xFFFF0000 inactive_color=0x00494d64 width=5.0'
+  # Colors: Everforest dark red (active_color) / dark overlay1 (inactive_color,
+  # alpha=00 so it stays invisible — see aerospace.sh in sketchybar/plugins for
+  # the same dark-palette hex values used elsewhere).
+  'exec-and-forget borders active_color=0xffe67e80 inactive_color=0x0056635f width=5.0'
 ]
 
 # Start AeroSpace at login

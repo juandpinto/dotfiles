@@ -114,7 +114,7 @@ symlinked into `$HOME`.
   even without them in `EnvironmentVariables`. Don't hardcode `/Users/<name>`
   anywhere in this plist again; a previous version did and the agent
   silently failed to load on any machine whose username didn't match,
-  which broke nvim's appearance sync (see `catppuccin.lua`) since
+  which broke nvim's appearance sync (see `everforest.lua`) since
   `~/.cache/appearance` was never created.
 - **To add auto-dark-mode support to a new tool**, first figure out which
   category it falls into, since each needs a different integration in
@@ -132,7 +132,7 @@ symlinked into `$HOME`.
      theme. Only gate the *live* reload signal (e.g. a `SIGUSR2`-style hot
      reload) on the process actually existing.
   3. **Tool is a long-running scriptable process that can read a file
-     itself** (nvim, see `.config/nvim/lua/plugins/catppuccin.lua`): have
+     itself** (nvim, see `.config/nvim/lua/plugins/everforest.lua`): have
      it read `~/.cache/appearance` directly instead of re-invoking
      `defaults read` — a plain file read is far cheaper than spawning a
      subprocess on a timer, and keeps it on the same single detection point

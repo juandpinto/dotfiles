@@ -8,7 +8,7 @@
 # own `defaults read` poll; nvim's auto-dark-mode.nvim did too).
 #
 # Writes the current appearance to $STATE_FILE on every change so other
-# consumers (e.g. nvim, see catppuccin.lua) can cheaply read a file instead
+# consumers (e.g. nvim, see everforest.lua) can cheaply read a file instead
 # of spawning their own `defaults read`. Also directly triggers the
 # tools below that don't have their own way to pick up a live change.
 #
@@ -43,8 +43,8 @@ react() {
   # btop: keep the config file in sync regardless of whether btop is
   # currently running (so a later fresh launch picks the right theme), but
   # only signal a live hot-reload if a btop process actually exists.
-  local btop_theme="catppuccin_latte"
-  [ "$mode" = "dark" ] && btop_theme="catppuccin_mocha"
+  local btop_theme="everforest-light-medium"
+  [ "$mode" = "dark" ] && btop_theme="everforest-dark-medium"
   if [ -f "$BTOP_CONF" ]; then
     sed -i '' -E "s/^color_theme = \".*\"/color_theme = \"${btop_theme}.theme\"/" "$BTOP_CONF"
   fi

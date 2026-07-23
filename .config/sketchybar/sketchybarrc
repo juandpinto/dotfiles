@@ -6,19 +6,23 @@ PLUGIN_DIR="$CONFIG_DIR/plugins"
 DARK_MODE=$(defaults read -g AppleInterfaceStyle 2>/dev/null)
 
 if [ "$DARK_MODE" = "Dark" ]; then
-  # ── Catppuccin Mocha (dark) ───────────────────────────────────────────
-  TEXT=0xffcdd6f4          # text
-  SUBTEXT1=0xffbac2de      # subtext1
-  MAUVE=0xffcba6f7         # mauve
-  BLUE=0xff89b4fa          # blue
-  GREEN=0xffa6e3a1         # green
-  RED=0xfff38ba8           # red
-  YELLOW=0xfffab387        # peach
-  TEAL=0xff94e2d5          # teal
-  PINK=0xfff5c2e7          # pink
-  LAVENDER=0xffb4befe      # lavender
-  ISLAND_BG=0xcc1e1e2e     # base, frosted
-  ISLAND_BORDER=0x40cba6f7 # mauve border
+  # ── Everforest Dark, medium contrast (active) ─────────────────────────
+  # Catppuccin's 14 named accents don't all have an Everforest equivalent
+  # (only 7 accents), so PINK and LAVENDER reuse MAUVE's purple, and
+  # YELLOW here is actually Everforest's "orange" (kept the var name since
+  # the plugin scripts below all reference $YELLOW).
+  TEXT=0xffd3c6aa          # fg
+  SUBTEXT1=0xff859289      # grey1
+  MAUVE=0xffd699b6         # purple
+  BLUE=0xff7fbbb3          # blue
+  GREEN=0xffa7c080         # green
+  RED=0xffe67e80           # red
+  YELLOW=0xffe69875        # orange
+  TEAL=0xff83c092          # aqua
+  PINK=0xffd699b6          # purple
+  LAVENDER=0xffd699b6      # purple
+  ISLAND_BG=0xcc2d353b     # bg0, frosted
+  ISLAND_BORDER=0x40d699b6 # purple border
 
   # ── VS Code Dark+ — swap in to reactivate ────────────────────────────
   # TEXT=0xffd4d4d4; SUBTEXT1=0xff808080; MAUVE=0xffc586c0
@@ -26,19 +30,19 @@ if [ "$DARK_MODE" = "Dark" ]; then
   # TEAL=0xff4ec9b0; PINK=0xffc586c0; LAVENDER=0xff9cdcfe
   # ISLAND_BG=0x881f1f1f; ISLAND_BORDER=0x40569cd6
 else
-  # ── Catppuccin Latte (light) ──────────────────────────────────────────
-  TEXT=0xff4c4f69          # text
-  SUBTEXT1=0xff5c5f77      # subtext1
-  MAUVE=0xff8839ef         # mauve
-  BLUE=0xff1e66f5          # blue
-  GREEN=0xff40a02b         # green
-  RED=0xffd20f39           # red
-  YELLOW=0xfffe640b        # peach
-  TEAL=0xff179299          # teal
-  PINK=0xffea76cb          # pink
-  LAVENDER=0xff7287fd      # lavender
-  ISLAND_BG=0xcceff1f5     # base, frosted
-  ISLAND_BORDER=0x408839ef # mauve border
+  # ── Everforest Light, medium contrast (active) ────────────────────────
+  TEXT=0xff5c6a72          # fg
+  SUBTEXT1=0xff939f91      # grey1
+  MAUVE=0xffdf69ba         # purple
+  BLUE=0xff3a94c5          # blue
+  GREEN=0xff8da101         # green
+  RED=0xfff85552           # red
+  YELLOW=0xfff57d26        # orange
+  TEAL=0xff35a77c          # aqua
+  PINK=0xffdf69ba          # purple
+  LAVENDER=0xffdf69ba      # purple
+  ISLAND_BG=0xccfdf6e3     # bg0, frosted
+  ISLAND_BORDER=0x40df69ba # purple border
 
   # ── VS Code Light+ — swap in to reactivate ───────────────────────────
   # TEXT=0xff343434; SUBTEXT1=0xff767676; MAUVE=0xffaf00db

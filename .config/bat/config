@@ -24,5 +24,10 @@
 #--map-syntax "*.ino:C++"
 #--map-syntax ".ignore:Git Ignore"
 
---theme-dark="Catppuccin Mocha"
---theme-light="Catppuccin Latte"
+--theme-dark="Everforest Dark"
+--theme-light="Everforest Light"
+
+# Custom themes (not bundled with bat) live in ./themes/ and need building
+# into bat's syntax cache once after adding/changing them:
+#   bat cache --build
+# Run `bat cache --clear` to go back to only the bundled themes.

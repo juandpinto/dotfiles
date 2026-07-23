@@ -4,10 +4,10 @@
 IP=$(ipconfig getifaddr en0 2>/dev/null)
 
 if [ -z "$IP" ]; then
-# Catppuccin / VS Code disconnected colors:
-#   mocha red #f38ba8 → 0xfff38ba8 | latte red #d20f39 → 0xffd20f39
+# Everforest / VS Code disconnected colors:
+#   dark red #e67e80 → 0xffe67e80 | light red #f85552 → 0xfff85552
 #   vscode: 0xfff44747 (dark) / 0xffa31515 (light)
-DISCONNECTED_COLOR=$(defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark && echo "0xfff38ba8" || echo "0xffd20f39")
+DISCONNECTED_COLOR=$(defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark && echo "0xffe67e80" || echo "0xfff85552")
   sketchybar --set "$NAME" icon="󰤭" icon.color=$DISCONNECTED_COLOR label.drawing=off
   exit 0
 fi
@@ -24,8 +24,8 @@ elif [ "$RSSI" -ge -70 ]; then ICON="󰤢"
 else                           ICON="󰤟"
 fi
 
-# Catppuccin / VS Code connected colors:
-#   mocha blue #89b4fa → 0xff89b4fa | latte blue #1e66f5 → 0xff1e66f5
+# Everforest / VS Code connected colors:
+#   dark blue #7fbbb3 → 0xff7fbbb3 | light blue #3a94c5 → 0xff3a94c5
 #   vscode: 0xff569cd6 (dark) / 0xff007acc (light)
-CONNECTED_COLOR=$(defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark && echo "0xff89b4fa" || echo "0xff1e66f5")
+CONNECTED_COLOR=$(defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark && echo "0xff7fbbb3" || echo "0xff3a94c5")
 sketchybar --set "$NAME" icon="$ICON" icon.color=$CONNECTED_COLOR label.drawing=off
