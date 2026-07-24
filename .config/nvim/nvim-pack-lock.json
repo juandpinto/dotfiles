@@ -132,6 +132,10 @@
       "rev": "74b06c6c75e4eeb3108ec01852001636d85a932b",
       "src": "https://github.com/nvim-lua/plenary.nvim"
     },
+    "rainbow_csv": {
+      "rev": "3dbbfd7d17536aebfb80f571255548495574c32b",
+      "src": "https://github.com/mechatroner/rainbow_csv"
+    },
     "render-markdown.nvim": {
       "rev": "f422cb5c6855f150e2ddcfaf44e7157b98b34f6a",
       "src": "https://github.com/MeanderingProgrammer/render-markdown.nvim"

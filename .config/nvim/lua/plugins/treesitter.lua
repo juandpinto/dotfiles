@@ -49,10 +49,28 @@ local function treesitter_try_attach(buf, language)
     -- if has_indent_query then vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()" end
 end
 
+-- Rainbow CSV (see plugins.rainbow_csv) highlights CSV/TSV columns using
+-- legacy `:syntax` matches (priority 50). Treesitter highlights (priority
+-- 100, see `vim.highlight.priorities`) always render on top of those, and
+-- tree-sitter-csv's own highlight query is coarse enough (just text vs.
+-- number vs. delimiter) that it would paint over Rainbow CSV's per-column
+-- colors on every buffer. Skip Treesitter for these filetypes so Rainbow
+-- CSV's highlighting is the one that's actually visible.
+local skip_treesitter_filetypes = {
+    csv = true,
+    tsv = true,
+    csv_semicolon = true,
+    csv_whitespace = true,
+    csv_pipe = true,
+    rfc_csv = true,
+    rfc_semicolon = true,
+}
+
 local available_parsers = require('nvim-treesitter').get_available()
 vim.api.nvim_create_autocmd('FileType', {
     callback = function(args)
         local buf, filetype = args.buf, args.match
+        if skip_treesitter_filetypes[filetype] then return end
 
         local language = vim.treesitter.language.get_lang(filetype)
         if not language then return end

@@ -1,0 +1,17 @@
+-- [[ Rainbow CSV ]]
+--  Highlights CSV/TSV columns in distinct colors so it's easy to tell which
+--  field the cursor is in, especially on wide files where the header has
+--  scrolled off-screen. Zero-config, pure Vimscript, autodetects the
+--  delimiter (comma/tab/semicolon/pipe) from file content/extension.
+--
+--  See `plugins.treesitter` for why Treesitter is skipped on csv/tsv
+--  filetypes -- its highlighting would otherwise render on top of and hide
+--  Rainbow CSV's column colors.
+--
+--  Bonus commands (not required for highlighting, safe to ignore):
+--    :CSVLint       - check for inconsistent row lengths/quoting
+--    :RainbowAlign   - pad columns to align them visually
+--    :Select / :Update - RBQL SQL-like queries over the current file
+--
+--  See https://github.com/mechatroner/rainbow_csv for full docs.
+vim.pack.add({ 'https://github.com/mechatroner/rainbow_csv' })
