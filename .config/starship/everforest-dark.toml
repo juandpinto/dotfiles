@@ -1,0 +1,77 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Everforest (dark, medium contrast) recolor of starship's stock default
+# prompt. Hex values: sainnhe/everforest's official "medium" contrast dark
+# palette (https://github.com/sainnhe/everforest/blob/master/palette.md),
+# the same one used in nvim/tmux/WezTerm/btop/eza. Deliberately does NOT
+# set a custom `format` -- every module below keeps starship's built-in
+# icons/wording/layout ($all), just recolored (plain bold text, no
+# background chips). This is the source file for the dark variant -- the
+# live config is ~/.config/starship.toml, kept in sync with whichever
+# variant matches the current macOS appearance by
+# bin/appearance-watcher.sh's react() (see AGENTS.md's "Auto dark/light
+# mode syncing" section). Don't edit ~/.config/starship.toml directly, it
+# gets overwritten on every light/dark switch.
+
+[directory]
+style = "bold #83c092" # cyan -> teal/aqua
+
+[git_branch]
+style = "bold #d699b6" # purple
+
+[git_commit]
+style = "bold #a7c080" # green
+
+[git_state]
+style = "bold #dbbc7f" # yellow
+
+[git_status]
+style = "bold #e67e80" # red
+
+[package]
+style = "bold #e69875" # orange (208)
+
+[python]
+style = "bold #dbbc7f" # yellow
+
+[nodejs]
+style = "bold #a7c080" # green
+
+[rust]
+style = "bold #e67e80" # red
+
+[golang]
+style = "bold #83c092" # cyan -> teal/aqua
+
+[java]
+style = "dimmed #e67e80" # red dimmed
+
+[docker_context]
+style = "bold #7fbbb3" # blue
+
+[conda]
+style = "bold #a7c080" # green
+
+[aws]
+style = "bold #dbbc7f" # yellow
+
+[gcloud]
+style = "bold #7fbbb3" # blue
+
+[cmd_duration]
+style = "bold #dbbc7f" # yellow
+
+[jobs]
+style = "bold #7fbbb3" # blue
+
+[time]
+disabled = false
+style = "bold #dbbc7f" # yellow
+
+[character]
+success_symbol = "[❯](bold #a7c080)"
+error_symbol = "[❯](bold #e67e80)"
+vimcmd_symbol = "[❮](bold #a7c080)"
+vimcmd_replace_one_symbol = "[❮](bold #d699b6)"
+vimcmd_replace_symbol = "[❮](bold #d699b6)"
+vimcmd_visual_symbol = "[❮](bold #dbbc7f)"

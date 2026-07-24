@@ -18,11 +18,17 @@
 # separate "sync file" needed for those two. btop is different: it only
 # reads color_theme from btop.conf passively, so that file must be kept in
 # sync unconditionally (not just gated on btop currently running), or a
-# fresh `btop` launch would load a stale theme.
+# fresh `btop` launch would load a stale theme. starship is simpler still:
+# it re-execs as a subprocess and re-reads its config file fresh on every
+# single prompt render, so keeping ~/.config/starship.toml in sync here is
+# enough on its own -- the very next prompt draw already reflects the
+# change, no reload signal needed.
 
 STATE_FILE="$HOME/.cache/appearance"
 TMUX_CONF="$HOME/.config/tmux/tmux.conf"
 BTOP_CONF="$HOME/.config/btop/btop.conf"
+STARSHIP_CONF="$HOME/.config/starship.toml"
+STARSHIP_DIR="$HOME/.config/starship"
 
 mkdir -p "$(dirname "$STATE_FILE")"
 
@@ -49,6 +55,14 @@ react() {
     sed -i '' -E "s/^color_theme = \".*\"/color_theme = \"${btop_theme}.theme\"/" "$BTOP_CONF"
   fi
   pgrep -x btop &>/dev/null && pkill -USR2 -x btop 2>/dev/null
+
+  # starship: no live process to signal -- just keep the config file in
+  # sync unconditionally, same as btop.conf above. The next prompt render
+  # (any new shell, or the next command in an already-open one) picks it
+  # up automatically since starship re-reads this file every time.
+  if [ -f "$STARSHIP_CONF" ]; then
+    cp "$STARSHIP_DIR/everforest-${mode}.toml" "$STARSHIP_CONF"
+  fi
 }
 
 PREV=$(defaults read -g AppleInterfaceStyle 2>/dev/null)

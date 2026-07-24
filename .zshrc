@@ -62,8 +62,33 @@ export NVM_DIR="$HOME/.nvm"
 eval "$(starship init zsh)"
 
 # ---- Eza (better ls) ----
-# alias ls="ls -l -G -h -p" 
-alias ls="eza -lh --icons=always --color=always --group-directories-first --no-permissions --no-user --git"
+# alias ls="ls -l -G -h -p"
+# EZA_COLORS is read fresh on every invocation (a plain env var read on
+# process start, no config file involved), so recomputing it here from the
+# shared appearance state file (~/.cache/appearance, see
+# bin/appearance-watcher.sh and AGENTS.md's "Auto dark/light mode syncing"
+# section) keeps `ls` in sync with dark/light mode without needing the
+# watcher to know anything about eza. Hex values: sainnhe/everforest's
+# official "medium" contrast palettes
+# (https://github.com/sainnhe/everforest/blob/master/palette.md), the same
+# ones used in nvim/tmux/WezTerm/btop/starship. See `man eza_colors` for
+# what each two-letter code controls.
+_eza_colors_dark="di=38;2;127;187;179:ex=1;38;2;230;152;117:ln=38;2;214;153;182:or=1;38;2;230;126;128:pi=38;2;219;188;127:so=38;2;214;153;182:bd=38;2;230;152;117:cd=38;2;230;152;117:sn=38;2;167;192;128:sb=38;2;167;192;128:da=38;2;122;132;120:hd=1;4;38;2;211;198;170:lp=38;2;131;192;146:xx=38;2;86;99;95:ga=38;2;167;192;128:gm=38;2;219;188;127:gd=38;2;230;126;128:gv=38;2;214;153;182:gt=38;2;230;152;117:gi=38;2;122;132;120:gc=1;38;2;230;126;128:Gm=38;2;214;153;182:Go=38;2;131;192;146:Gc=38;2;167;192;128:Gd=38;2;230;126;128:sc=38;2;167;192;128:bu=38;2;122;132;120:do=4;38;2;219;188;127:im=38;2;214;153;182:vi=38;2;214;153;182:mu=38;2;131;192;146:lo=38;2;131;192;146:cr=38;2;230;126;128:co=38;2;230;152;117:tm=38;2;86;99;95:cm=38;2;86;99;95"
+_eza_colors_light="di=38;2;58;148;197:ex=1;38;2;245;125;38:ln=38;2;223;105;186:or=1;38;2;248;85;82:pi=38;2;223;160;0:so=38;2;223;105;186:bd=38;2;245;125;38:cd=38;2;245;125;38:sn=38;2;141;161;1:sb=38;2;141;161;1:da=38;2;166;176;160:hd=1;4;38;2;92;106;114:lp=38;2;53;167;124:xx=38;2;189;195;175:ga=38;2;141;161;1:gm=38;2;223;160;0:gd=38;2;248;85;82:gv=38;2;223;105;186:gt=38;2;245;125;38:gi=38;2;166;176;160:gc=1;38;2;248;85;82:Gm=38;2;223;105;186:Go=38;2;53;167;124:Gc=38;2;141;161;1:Gd=38;2;248;85;82:sc=38;2;141;161;1:bu=38;2;166;176;160:do=4;38;2;223;160;0:im=38;2;223;105;186:vi=38;2;223;105;186:mu=38;2;53;167;124:lo=38;2;53;167;124:cr=38;2;248;85;82:co=38;2;245;125;38:tm=38;2;189;195;175:cm=38;2;189;195;175"
+
+# unalias first: if this file is re-sourced in a shell that still has `ls`
+# defined as a plain alias (e.g. from before this function existed), zsh's
+# parser alias-expands `ls` before it reaches the `()`  and errors out with
+# "defining function based on alias". A fresh shell never hits this since it
+# never had the alias, but re-sourcing needs it to be idempotent either way.
+unalias ls 2>/dev/null
+ls() {
+  local appearance eza_colors
+  appearance=$(cat ~/.cache/appearance 2>/dev/null)
+  eza_colors="$_eza_colors_dark"
+  [ "$appearance" = "light" ] && eza_colors="$_eza_colors_light"
+  EZA_COLORS="$eza_colors" eza -lh --icons=always --color=always --group-directories-first --no-permissions --no-user --git "$@"
+}
 
 # ---- Zoxide (better cd) ----
 eval "$(zoxide init zsh)"
