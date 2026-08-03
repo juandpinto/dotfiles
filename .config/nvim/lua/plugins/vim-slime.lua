@@ -1,6 +1,13 @@
 vim.pack.add({ 'https://github.com/jpalardy/vim-slime' })
 
-vim.g.slime_python_ipython = 1
+-- Bracketed paste (not `%cpaste`) lets IPython accept multi-line, indented
+-- code as a single paste event: it dodges the classic "blank line inside a
+-- block submits early" bug that raw sends hit, while also preserving
+-- prompt_toolkit's live syntax highlighting and continuation prompts, which
+-- `%cpaste` mode does not render. Do not also set `slime_python_ipython`---
+-- combining both wrapped %cpaste's own "--" sentinel in bracket-paste escape
+-- codes and hung the REPL (see jpalardy/vim-slime#265).
+vim.g.slime_bracketed_paste = 1
 vim.g.slime_dont_ask_default = 1
 
 -- =========================================
