@@ -24,8 +24,8 @@
 #--map-syntax "*.ino:C++"
 #--map-syntax ".ignore:Git Ignore"
 
---theme-dark="Everforest Dark"
---theme-light="Everforest Light"
+--theme-dark="everforest-dark"
+--theme-light="everforest-light"
 
 # Custom themes (not bundled with bat) live in ./themes/ and need building
 # into bat's syntax cache once after adding/changing them:

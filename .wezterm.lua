@@ -72,6 +72,19 @@ config.enable_kitty_graphics = true
 -- }
 --
 
+local action = wezterm.action
+
+config.keys = {
+    -- Let alt-enter pass through to the running program (e.g. pi's queue
+    -- follow-up message keybinding) instead of WezTerm's default
+    -- ToggleFullScreen action.
+    {
+        key = 'Enter',
+        mods = 'ALT',
+        action = action.DisableDefaultAssignment,
+    },
+}
+
 config.enable_tab_bar = false
 config.tab_bar_at_bottom = true
 config.use_fancy_tab_bar = false
