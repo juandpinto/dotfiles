@@ -6,6 +6,26 @@
             "complex_modifications": {
                 "rules": [
                     {
+                        "description": "Change Left Alt/Option to Alt+Cmd+Ctrl",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": {
+                                    "key_code": "left_option",
+                                    "modifiers": {
+                                        "optional": ["any"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_control",
+                                        "modifiers": ["left_command", "left_option"]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
                         "description": "CAPS_LOCK to SHIFT or ESCAPE (If Alone)",
                         "manipulators": [
                             {
