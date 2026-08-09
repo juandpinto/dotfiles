@@ -65,7 +65,7 @@ style = "bold #dfa000" # yellow
 style = "bold #3a94c5" # blue
 
 [time]
-disabled = false
+disabled = true
 style = "bold #dfa000" # yellow
 
 [character]
