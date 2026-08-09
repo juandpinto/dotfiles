@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.83.0",
+  "lastChangelogVersion": "0.84.1",
   "theme": "everforest-dark",
   "defaultProvider": "github-copilot",
   "defaultModel": "claude-sonnet-5",
