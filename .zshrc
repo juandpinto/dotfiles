@@ -144,7 +144,7 @@ _fzf_comprun() {
   esac
 }
 
-source ~/fzf-git.sh/fzf-git.sh
+source ~/.config/zsh/plugins/fzf-git.sh/fzf-git.sh
 
 # ---- Yazi wrapper function to change the current working directory after running yazi ----
 function y() {

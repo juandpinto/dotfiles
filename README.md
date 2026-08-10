@@ -1,6 +1,24 @@
 # Dotfiles
 
-Personal macOS dotfiles for `juan.pinto`, managed with [GNU Stow](https://www.gnu.org/software/stow/). There's no bootstrap script or install target—setup is the handful of manual steps below.
+Personal macOS dotfiles for Juan Pinto, managed with [GNU Stow](https://www.gnu.org/software/stow/). There's no bootstrap script or install target—setup is the handful of manual steps below.
+
+This is my actual day-to-day setup, not a general-purpose framework, so it comes with strong personal opinions (Everforest theme everywhere, specific keybindings, an AI-coding-agent-heavy workflow via [pi](https://github.com/earendil-works/pi)) and machine-specific assumptions (macOS, Homebrew, zsh). It's public for reference—browse it for ideas or fork what's useful, but treat it as inspiration rather than something to install wholesale.
+
+## What's inside
+
+| Area               | Tool(s)                                                   |
+|--------------------|-----------------------------------------------------------|
+| Shell              | zsh (`.zshrc`), Starship prompt                           |
+| Terminal           | WezTerm, tmux                                             |
+| Editor             | Neovim (built-in `vim.pack`, no plugin-manager framework) |
+| Window management  | AeroSpace, sketchybar                                     |
+| Keyboard remapping | Karabiner-Elements                                        |
+| File manager       | Yazi                                                      |
+| System monitor     | btop                                                      |
+| Email              | aerc                                                      |
+| AI coding agent    | [pi](https://github.com/earendil-works/pi)                |
+| Linting/formatting | Ruff (Python), StyLua (Lua), markdownlint                 |
+| Diff/review        | hunk                                                      |
 
 ## Prerequisites
 
@@ -13,7 +31,7 @@ Personal macOS dotfiles for `juan.pinto`, managed with [GNU Stow](https://www.gn
 1. Clone the repo to `~/.dotfiles`:
 
     ```bash
-    git clone <repo-url> ~/.dotfiles
+    git clone https://github.com/juandpinto/dotfiles.git ~/.dotfiles
     cd ~/.dotfiles
     ```
 
@@ -59,6 +77,5 @@ readlink ~/.config/pi/agent/git   # prints nothing once fixed
 
 - **Neovim**: uses the built-in `vim.pack` plugin manager; plugins install automatically the first time you launch `nvim`.
 - **tmux**: plugins install via TPM; press `prefix + I` inside tmux on first use. `.config/tmux/plugins/*` other than `tpm` itself is gitignored—TPM installs the rest at runtime, they're not vendored here.
-- **OpenCode**: `.config/opencode` has its own local `.gitignore` for `node_modules/`, `package.json`, `package-lock.json`, and `bun.lock` (needed for the `@opencode-ai/plugin` dependency). Run `npm install` inside `.config/opencode` if you need that dependency locally.
 
 See `AGENTS.md` for more detail on the repo's structure and conventions.

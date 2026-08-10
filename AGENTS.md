@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Personal macOS dotfiles repo for `juan.pinto`. No build, test, lint, or CI
+Personal macOS dotfiles repo for Juan Pinto. No build, test, lint, or CI
 pipeline — there is nothing to "run" here, just config files that get
 symlinked into `$HOME`.
 
@@ -44,22 +44,11 @@ symlinked into `$HOME`.
   usual and pi installs `npm:`/`git:` packages into fresh local dirs on
   first run, no manual steps needed.
 
-## `.config/opencode/` is the live global OpenCode config
-
-- This isn't project-local config — it's the actual `~/.config/opencode`
-  used by every OpenCode session on this machine. Changes here have
-  machine-wide effect, not just within this repo.
-- When editing `opencode.jsonc`, anything under `skills/`, or anything
-  agent/plugin-related, use the **customize-opencode** skill.
-- `node_modules/`, `package.json`, `package-lock.json`, and `bun.lock` under
-  `.config/opencode/` are gitignored (its own local `.gitignore`) — they
-  exist locally for the `@opencode-ai/plugin` dependency but are not meant
-  to be committed.
-
 ## Git submodules
 
-- Two real submodules: `fzf-git.sh` and `.config/tmux/plugins/tpm`. After a
-  fresh clone, run `git submodule update --init`.
+- Two real submodules: `.config/zsh/plugins/fzf-git.sh` and
+  `.config/tmux/plugins/tpm`. After a fresh clone, run `git submodule update
+  --init`. Both are nested under `.config/<tool>/`.
 - `.config/tmux/plugins/*` is gitignored except `tpm` (tmux's plugin
   manager, TPM, installs the rest at runtime — they're not vendored here).
 
@@ -156,7 +145,7 @@ symlinked into `$HOME`.
 
 ## Existing skills (don't duplicate their guidance here)
 
-`.config/opencode/skills/` already covers: `documentation` (Markdown style
+`.config/pi/agent/skills/` already covers: `documentation` (Markdown style
 for data-science docs), `python` (DS Python conventions), `mh-wiki` (McGraw
 Hill personal wiki operations), `grill-me` (plan-stress-testing interview
 flow). Prefer updating those files over adding overlapping notes here.

@@ -2,5 +2,5 @@
 	path = .config/tmux/plugins/tpm
 	url = https://github.com/tmux-plugins/tpm
 [submodule "fzf-git.sh"]
-	path = fzf-git.sh
+	path = .config/zsh/plugins/fzf-git.sh
 	url = https://github.com/junegunn/fzf-git.sh.git
