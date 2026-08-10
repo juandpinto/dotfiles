@@ -22,13 +22,17 @@
 # it re-execs as a subprocess and re-reads its config file fresh on every
 # single prompt render, so keeping ~/.config/starship.toml in sync here is
 # enough on its own -- the very next prompt draw already reflects the
-# change, no reload signal needed.
+# change, no reload signal needed. hunk is the same passive-config story as
+# btop: it has no CLI/signal hook to retheme a live `hunk diff`/`hunk show`
+# session, so ~/.config/hunk/config.toml just needs to be kept in sync
+# unconditionally for the next time it's launched.
 
 STATE_FILE="$HOME/.cache/appearance"
 TMUX_CONF="$HOME/.config/tmux/tmux.conf"
 BTOP_CONF="$HOME/.config/btop/btop.conf"
 STARSHIP_CONF="$HOME/.config/starship.toml"
 STARSHIP_DIR="$HOME/.config/starship"
+HUNK_CONF="$HOME/.config/hunk/config.toml"
 
 mkdir -p "$(dirname "$STATE_FILE")"
 
@@ -62,6 +66,13 @@ react() {
   # up automatically since starship re-reads this file every time.
   if [ -f "$STARSHIP_CONF" ]; then
     cp "$STARSHIP_DIR/everforest-${mode}.toml" "$STARSHIP_CONF"
+  fi
+
+  # hunk: same passive-config story as btop (no live-reload hook for theme
+  # across its short-lived `hunk diff`/`hunk show` sessions), so just keep
+  # config.toml's `theme` in sync unconditionally.
+  if [ -f "$HUNK_CONF" ]; then
+    sed -i '' -E "s/^theme = \".*\"/theme = \"everforest-${mode}\"/" "$HUNK_CONF"
   fi
 }
 
