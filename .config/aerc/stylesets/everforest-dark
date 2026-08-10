@@ -16,25 +16,58 @@ tab.selected.bold=true
 border.fg=#232a2e
 border.bold=true
 
+# Message list: per-state accent colors, layered on top of the existing
+# bold/yellow-flagged treatment. Layering order (aerc-stylesets(7)) is
+# unread -> read -> answered -> forwarded -> flagged -> deleted -> result
+# -> thread_folded -> thread_context -> thread_orphan -> marked (last
+# wins), so a flagged-and-unread message shows flagged's yellow, and
+# marked always stays the most visually distinct state.
 msglist_unread.bold=true
+msglist_unread.fg=#83c092
+msglist_answered.fg=#7fbbb3
+msglist_forwarded.fg=#d699b6
 msglist_flagged.fg=#dbbc7f
 msglist_flagged.bold=true
+msglist_deleted.fg=#e67e80
+msglist_deleted.dim=true
 msglist_result.fg=#7fbbb3
 msglist_result.bold=true
+msglist_marked.fg=#e69875
+msglist_marked.bold=true
+
+# Selected-row highlight: bumped from surface0 (#343f44, too close to the
+# #2d353b background to read easily) to overlay1 (#56635f) for real
+# contrast -- same Everforest "medium contrast dark" palette used
+# elsewhere (see ~/.config/tmux/everforest-dark.conf). Applied uniformly
+# everywhere a "selected" state appears: message list, folder list, the
+# selector widget, completion popups, and the MIME part switcher below.
 msglist_*.selected.bold=true
-msglist_*.selected.bg=#343f44
+msglist_*.selected.bg=#56635f
 
 dirlist_*.selected.bold=true
-dirlist_*.selected.bg=#343f44
+dirlist_*.selected.bg=#56635f
+# Folders containing unread/recent mail stand out in the sidebar too.
+dirlist_unread.bold=true
+dirlist_unread.fg=#a7c080
+dirlist_recent.bold=true
+dirlist_recent.fg=#7fbbb3
 
 statusline_default.fg=#859289
 statusline_default.bg=#343f44
 statusline_error.bold=true
 statusline_success.bold=true
 
-selector_focused.bg=#343f44
+selector_focused.bg=#56635f
 
-completion_default.selected.bg=#343f44
+completion_default.selected.bg=#56635f
+
+# Message viewer's MIME part switcher: which part is currently selected was
+# previously indistinguishable (no override existed at all, so it fell
+# back to the same unstyled look as every other part). Same highlight
+# treatment as the selected message/folder above.
+part_switcher.selected.bg=#56635f
+part_filename.selected.bold=true
+part_mimetype.selected.bold=true
 
 [viewer]
 url.fg=#7fbbb3

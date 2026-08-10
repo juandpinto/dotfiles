@@ -1,0 +1,17 @@
+# Custom overrides on top of w3m's own compiled-in default keymap (see
+# doc/keymap.default in the w3m source for the full baseline this
+# extends -- only these two entries differ from stock).
+#
+# w3m has no default binding at all for C-d, and C-u defaults to
+# PREV_LINK (jump to the previous hyperlink), not any kind of scrolling --
+# confirmed empirically (both keys were tested against a real page and
+# did nothing/jumped links, not scrolled). Remapped here to match vim's
+# own half-page-scroll convention, which the rest of this setup already
+# uses consistently (nvim, aerc's own message list -- see
+# ~/.config/aerc/binds.conf's `<C-d> = :next 50%`/`<C-u> = :prev 50%`).
+# w3m is used in this setup exclusively for interactive HTML-email
+# rendering from within aerc (see ~/.config/aerc/aerc.conf's
+# `text/html=! html` filter), so this keymap only ever matters in that
+# context in practice.
+keymap C-d NEXT_HALF_PAGE
+keymap C-u PREV_HALF_PAGE

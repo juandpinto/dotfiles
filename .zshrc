@@ -8,6 +8,13 @@ export PATH="$HOME/.local/bin:$PATH"
 export VISUAL="nvim"
 export EDITOR="nvim"
 
+# Explicit XDG_CONFIG_HOME: most CLI tools here already default to ~/.config
+# on their own, but at least one (aerc) resolves its own macOS-specific
+# fallback (~/Library/Preferences) instead when this is unset, silently
+# ignoring ~/.config/aerc. Setting this explicitly makes ~/.config the
+# reliable, single source of truth for every XDG-aware tool.
+export XDG_CONFIG_HOME="$HOME/.config"
+
 # Define location of pi agent configs
 export PI_CODING_AGENT_DIR="$HOME/.config/pi/agent"
 
@@ -52,6 +59,7 @@ alias gls="gls -lGhp --group-directories-first --color=auto"
 alias pandoc="/opt/homebrew/bin/pandoc"
 alias copilot=/opt/homebrew/bin/copilot
 alias opencode="opencode --port"
+alias lg="lazygit"
 
 # ---- nvm ----
 export NVM_DIR="$HOME/.nvm"
