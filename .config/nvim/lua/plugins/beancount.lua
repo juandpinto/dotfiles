@@ -1,4 +1,4 @@
-local main_bean_file = '/Users/juanpinto/Documents-local/beancount/1-pinto.bean'
+local main_bean_file = vim.env.HOME .. '/Documents-local/beancount/1-pinto.bean'
 
 -- Only load on machines where the beancount project exists
 if vim.fn.filereadable(main_bean_file) ~= 1 then return end
