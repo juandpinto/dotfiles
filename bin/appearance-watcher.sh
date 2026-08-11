@@ -33,6 +33,7 @@ BTOP_CONF="$HOME/.config/btop/btop.conf"
 STARSHIP_CONF="$HOME/.config/starship.toml"
 STARSHIP_DIR="$HOME/.config/starship"
 HUNK_CONF="$HOME/.config/hunk/config.toml"
+GH_DASH_CONF="$HOME/.config/gh-dash/config.yml"
 
 mkdir -p "$(dirname "$STATE_FILE")"
 
@@ -73,6 +74,15 @@ react() {
   # config.toml's `theme` in sync unconditionally.
   if [ -f "$HUNK_CONF" ]; then
     sed -i '' -E "s/^theme = \".*\"/theme = \"everforest-${mode}\"/" "$HUNK_CONF"
+  fi
+
+  # gh-dash: also passive config, also no live-reload hook. Its theme has
+  # no built-in id to swap (unlike hunk), so the light/dark palettes live
+  # in separate tracked files (.config/gh-dash/themes/everforest-*.yml) and
+  # config.yml's `include:` path is rewritten to point at whichever one
+  # matches, instead of swapping file contents like btop/starship do.
+  if [ -f "$GH_DASH_CONF" ]; then
+    sed -i '' -E "s#themes/everforest-(dark|light)\.yml#themes/everforest-${mode}.yml#" "$GH_DASH_CONF"
   fi
 }
 

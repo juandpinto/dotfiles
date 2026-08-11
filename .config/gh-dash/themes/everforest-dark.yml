@@ -1,0 +1,33 @@
+# Everforest (dark, medium contrast) color mapping for gh-dash's
+# `theme.colors`, pulled in via config.yml's `include:` directive.
+#
+# Hex values: sainnhe/everforest's official "medium" contrast dark palette
+# (https://github.com/sainnhe/everforest/blob/master/palette.md), the same
+# one used in nvim/tmux/WezTerm/btop/starship/hunk. fg -> text.primary;
+# grey2/grey1 -> text.secondary/faint (grey2 brighter than grey1); bg0 ->
+# text.inverted (dark text for colored label/status chips); bg1 ->
+# background.selected; blue -> border.primary (the one accent-colored
+# border); bg2/bgDim -> border.secondary/faint (subtler, unaccented).
+#
+# This file is swapped for everforest-light.yml by
+# bin/appearance-watcher.sh's react() whenever macOS toggles light/dark
+# mode (see AGENTS.md's "Auto dark/light mode syncing" section) -- it
+# rewrites config.yml's `include:` path rather than this file's contents,
+# so both variants stay put as plain tracked files. gh-dash has no
+# live-reload hook, so a change here only takes effect on gh-dash's next
+# launch, same as btop/hunk.
+theme:
+  colors:
+    text:
+      primary: "#d3c6aa"
+      secondary: "#9da9a0"
+      inverted: "#2d353b"
+      faint: "#859289"
+      warning: "#dbbc7f"
+      success: "#a7c080"
+    background:
+      selected: "#343f44"
+    border:
+      primary: "#7fbbb3"
+      secondary: "#3d484d"
+      faint: "#232a2e"

@@ -1,0 +1,25 @@
+# Everforest (light, medium contrast) color mapping for gh-dash's
+# `theme.colors` -- see everforest-dark.yml in this directory for the full
+# mapping rationale and sync mechanism. Hex values: sainnhe/everforest's
+# official "medium" contrast light palette
+# (https://github.com/sainnhe/everforest/blob/master/palette.md).
+#
+# border.secondary and border.faint both land on the same hex here (bg2
+# and bg_dim collapse to one value in the official light palette) -- that's
+# an upstream quirk, not a mistake; tmux's everforest-light.conf hits the
+# same collapse for its mantle/crust slots.
+theme:
+  colors:
+    text:
+      primary: "#5c6a72"
+      secondary: "#829181"
+      inverted: "#fdf6e3"
+      faint: "#939f91"
+      warning: "#dfa000"
+      success: "#8da101"
+    background:
+      selected: "#f4f0d9"
+    border:
+      primary: "#3a94c5"
+      secondary: "#efebd4"
+      faint: "#efebd4"
