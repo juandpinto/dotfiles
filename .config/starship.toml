@@ -66,7 +66,7 @@ style = "bold #7fbbb3" # blue
 
 [time]
 disabled = true
-# style = "bold #dbbc7f" # yellow
+style = "bold #dbbc7f" # yellow
 
 [character]
 success_symbol = "[❯](bold #a7c080)"

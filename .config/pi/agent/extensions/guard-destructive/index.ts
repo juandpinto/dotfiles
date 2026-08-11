@@ -1,17 +1,28 @@
 import { isToolCallEventType, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
 	checkTier1Patterns,
+	DEFAULT_SAFE_ROOTS,
 	hasForcePushWithoutExplicitBranch,
 	isTier2Destructive,
 } from "./rules.ts";
 
+// $TMPDIR (macOS's per-session temp dir, e.g. /var/folders/xx/.../T/) is
+// also a safe-to-auto-allow root, alongside the fixed defaults in rules.ts.
+const SAFE_ROOTS = process.env.TMPDIR
+	? [...DEFAULT_SAFE_ROOTS, process.env.TMPDIR.endsWith("/") ? process.env.TMPDIR : `${process.env.TMPDIR}/`]
+	: DEFAULT_SAFE_ROOTS;
+
 /**
  * Guard: Destructive — a bash safety net with two tiers.
  *
- * Tier 1 (hard block, no override, no confirm): commands with no
- * legitimate everyday use, where even a confirm prompt adds risk (a tired
- * "yes" click) rather than safety. These never run, regardless of UI
- * availability.
+ * Tier 1 (hard block, no override, no confirm): commands whose literal form
+ * cannot safely reveal their scope, or whose effect has no legitimate everyday
+ * use, where even a confirm prompt adds risk (a tired "yes" click) rather
+ * than safety. This includes recursive forced deletion
+ * whose target comes from a shell variable or substitution, and process
+ * termination whose PID set comes from shell expansion, process enumeration,
+ * xargs, PID 0, or a process group: the literal command cannot safely reveal
+ * its real scope. These never run, regardless of UI availability.
  *
  * Tier 2 (confirm): commands that are *plausibly* destructive but have
  * completely normal everyday uses (`rm -rf node_modules`, `sudo`, etc.).
@@ -58,7 +69,12 @@ export default function (pi: ExtensionAPI) {
 		const tier1 = await checkTier1(pi, command);
 		if (tier1) return { block: true, reason: tier1.reason };
 
-		if (!isTier2Destructive(command)) return undefined;
+		const homeDir = process.env.HOME;
+		const destructive = isTier2Destructive(command, {
+			safeRoots: SAFE_ROOTS,
+			cwdContext: homeDir ? { startCwd: ctx.cwd, homeDir } : undefined,
+		});
+		if (!destructive) return undefined;
 
 		if (!ctx.hasUI) {
 			return { block: true, reason: "Potentially destructive command blocked (no UI available to confirm)." };

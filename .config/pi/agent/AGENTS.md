@@ -6,7 +6,8 @@
 - Match existing conventions in a repo (style, structure, tooling) before introducing new patterns or dependencies.
 - Don't commit, push, force-push, or rewrite git history without being asked. Follow a repo's existing commit-message conventions.
 - Never commit secrets, tokens, or credentials. Flag it if a change risks exposing something sensitive.
-- Confirm before destructive or hard-to-reverse operations (e.g. `rm -rf`, overwriting files, force-push).
+- Confirm before destructive or hard-to-reverse operations (e.g. `rm -rf`, overwriting files, force-push). `rm -rf` must use a literal path, never a variable or command substitution.
+- Never signal PIDs from process listings or shell expansion. Verify a literal PID and ask before `kill`; treat `pkill`, `killall`, PID `0`, and process groups as destructive.
 - Prefer `rg`/`fd` over `grep`/`find` for searching — faster, and skip `.gitignore`'d noise (`node_modules`, `.git`) by default. Use `--no-ignore`/`-uu` if you need to search inside ignored paths.
 - Use `curl` for web/research lookups (docs, Google/Scholar, general info gathering), and `gh` for anything involving GitHub repos, issues, or PRs.
 
