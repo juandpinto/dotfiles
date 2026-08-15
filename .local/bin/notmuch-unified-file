@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Account-aware archive/trash for aerc's unified notmuch tab.
+"""Account-aware, reversible archive/trash moves for aerc's unified tab.
 
-aerc's built-in archive/move commands use one static destination per account, but a unified notmuch account has no per-message awareness of whether a message belongs to iCloud or Gmail. This helper receives the selected raw message(s), resolves every Message-ID to its actual Maildir file(s) through notmuch, and moves each file to that real account's Archive or Trash folder.
+aerc's built-in archive/move commands use one static destination per account, but a unified notmuch account has no per-message awareness of whether a message belongs to iCloud or Gmail. This helper receives selected raw message(s), resolves every Message-ID to its actual Maildir file(s) through notmuch, and moves each file to that real account's Archive or Trash folder.
 
-After the move it runs the shared lock-guarded notmuch reindex and starts a targeted mbsync push. The locally patched aerc build observes the resulting Xapian change through its fixed macOS FSEvents watcher, so it updates the active view natively; this script deliberately does not force an IPC `:cf` refresh.
+Every successful local rename is durably journaled as one grouped user action before the move can complete. The ``undo`` mode reverses only the newest journaled action and refuses ambiguity, changed content, or a destination conflict rather than guessing or overwriting mail. After either direction, the helper runs the shared lock-guarded notmuch reindex and starts a targeted mbsync push. The locally patched aerc build observes the resulting Xapian change through its fixed macOS FSEvents watcher, so this script deliberately does not force an IPC `:cf` refresh.
 """
 
 import email
@@ -15,10 +15,19 @@ import sys
 import tempfile
 from pathlib import Path
 
+from aerc_unified_journal import (
+    JournalError,
+    MoveJournal,
+    MoveRecord,
+    Transaction,
+    sha256_file,
+)
+
 MAILDIR = Path.home() / "mail"
 LOG_PATH = Path.home() / "Library/Logs/notmuch-unified-file.log"
 SASL_PATH = "/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
 NOTMUCH_NEW_LOCKED = str(Path.home() / ".local/bin/notmuch-new-locked")
+UNDO_STATE_DIR = Path.home() / ".local/state/aerc/unified-move-undo"
 
 # Real destination folder per (account, mode). Every account/mode
 # combination we actually use must be listed here explicitly -- there is no
@@ -104,90 +113,358 @@ def strip_uid(name: str) -> str:
     return UID_RE.sub("", name)
 
 
-def move_one(message_id: str, mode: str) -> tuple[set[str], bool]:
-    """Move every real file for one message into its account's real folder.
+def destination_folder(account: str, mode: str) -> str | None:
+    """Return the real destination folder for a supported unified action."""
+    return DEST_FOR.get((account, mode))
 
-    Args:
-        message_id: The message's Message-ID header value (with or without
-            surrounding angle brackets).
-        mode: "archive" or "trash".
+
+def plan_moves(
+    message_ids: list[str], mode: str
+) -> tuple[list[MoveRecord], bool]:
+    """Resolve all selected messages before recording or changing any file.
 
     Returns:
-        A tuple of (touched, resolved):
-
-        - touched: real account names actually moved to (0, 1, or in the
-          rare case of a message duplicated across both accounts, 2), so
-          the caller knows which accounts need a follow-up sync.
-        - resolved: True if this message ended up correctly filed either
-          way -- whether that meant a real move, or it was already sitting
-          in the right place. False only when nothing could be done at all
-          (not found, unrecognized account, no destination mapping, or an
-          OS-level error). This distinction lets the caller tell "already
-          fine, nothing to do" apart from "something is actually wrong" --
-          re-archiving an already-archived message shouldn't surface as a
-          red error in aerc.
+        A pair of planned move records and whether at least one selected file
+        was already in its requested destination. A planned record is not yet
+        a successful move.
     """
-    touched: set[str] = set()
-    resolved = False
-    try:
-        files = files_for_message_id(message_id)
-    except subprocess.CalledProcessError as e:
-        log(f"SKIP <{message_id}>: notmuch lookup failed: {e}")
-        return touched, resolved
-    if not files:
-        log(f"SKIP <{message_id}>: not found in notmuch index")
-        return touched, resolved
+    planned: list[MoveRecord] = []
+    already_resolved = False
+    sources: set[Path] = set()
+    destinations: set[Path] = set()
 
-    for path in files:
-        # Everything below is one file at a time, deliberately isolated so a
-        # single problem file (vanished mid-batch, permission error, a
-        # concurrent sync touching the same file) can't abort the rest of a
-        # bulk operation -- e.g. archiving an entire marked thread should
-        # still finish for every message it *can* handle even if one can't.
+    for message_id in message_ids:
         try:
-            account = account_for_path(path)
-            if account is None:
-                log(f"SKIP {path}: not under a recognized account directory")
-                continue
-
-            dest_folder = DEST_FOR.get((account, mode))
-            if dest_folder is None:
-                log(
-                    f"SKIP {path}: no destination for account={account} mode={mode}"
-                )
-                continue
-
-            dest_dir = MAILDIR / account / dest_folder / "cur"
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            dest_path = dest_dir / strip_uid(path.name)
-
-            if path.parent == dest_dir:
-                # Already logically in the right folder (e.g. re-archiving
-                # an already-archived message) -- comparing containing
-                # directories rather than exact filenames, since a real
-                # mbsync-synced file still carries its ",U=<n>" suffix and
-                # would otherwise never exactly equal the stripped `dest_path`
-                # even when it's already in the correct place. Confirmed via
-                # `mbsync -V --dry-run` that renaming in place (stripping the
-                # suffix) is harmless either way -- mbsync doesn't use the
-                # local filename as its identity -- but skipping it avoids a
-                # pointless rename + resync on a no-op.
-                log(f"SKIP {path}: already in {dest_dir}")
-                resolved = True
-                continue
-            if dest_path.exists():
-                log(f"SKIP {path}: destination already exists at {dest_path}")
-                continue
-
-            os.rename(path, dest_path)
-            log(f"moved {path} -> {dest_path}")
-            touched.add(account)
-            resolved = True
-        except OSError as e:
-            log(f"SKIP {path}: {e}")
+            files = files_for_message_id(message_id)
+        except subprocess.CalledProcessError as error:
+            log(f"SKIP <{message_id}>: notmuch lookup failed: {error}")
+            continue
+        if not files:
+            log(f"SKIP <{message_id}>: not found in notmuch index")
             continue
 
-    return touched, resolved
+        for path in files:
+            try:
+                account = account_for_path(path)
+                if account is None:
+                    log(f"SKIP {path}: not under a recognized account directory")
+                    continue
+                folder = destination_folder(account, mode)
+                if folder is None:
+                    log(
+                        f"SKIP {path}: no destination for account={account} mode={mode}"
+                    )
+                    continue
+                destination_dir = MAILDIR / account / folder / "cur"
+                destination = destination_dir / strip_uid(path.name)
+
+                if path.parent == destination_dir:
+                    log(f"SKIP {path}: already in {destination_dir}")
+                    already_resolved = True
+                    continue
+                if path in sources:
+                    log(f"SKIP {path}: selected more than once")
+                    continue
+                if destination in destinations:
+                    log(f"SKIP {path}: collides with another selected destination")
+                    continue
+                if destination.exists():
+                    log(f"SKIP {path}: destination already exists at {destination}")
+                    continue
+                if not path.is_file():
+                    log(f"SKIP {path}: source is no longer a regular file")
+                    continue
+
+                planned.append(
+                    MoveRecord(
+                        message_id=message_id,
+                        account=account,
+                        source=str(path),
+                        destination=str(destination),
+                        sha256=sha256_file(path),
+                    )
+                )
+                sources.add(path)
+                destinations.add(destination)
+            except OSError as error:
+                log(f"SKIP {path}: {error}")
+
+    return planned, already_resolved
+
+
+def apply_transaction(
+    transaction: Transaction,
+    history: list[Transaction],
+    journal: MoveJournal,
+) -> set[str]:
+    """Apply a durable pending transaction and persist each completed rename."""
+    touched_accounts: set[str] = set()
+
+    for move in transaction.moves:
+        source = Path(move.source)
+        destination = Path(move.destination)
+        try:
+            if not source.is_file():
+                log(f"SKIP {source}: source vanished before move")
+                continue
+            if sha256_file(source) != move.sha256:
+                log(f"SKIP {source}: content changed before move")
+                continue
+            if destination.exists():
+                log(f"SKIP {source}: destination now exists at {destination}")
+                continue
+
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            move.forward_started = True
+            journal.save(history)
+            os.rename(source, destination)
+            move.moved = True
+            touched_accounts.add(move.account)
+            log(f"moved {source} -> {destination} transaction={transaction.id}")
+        except OSError as error:
+            log(f"SKIP {source}: {error}")
+        finally:
+            journal.save(history)
+
+    transaction.state = "complete"
+    journal.save(history)
+    return touched_accounts
+
+
+def move_messages(message_ids: list[str], mode: str) -> tuple[set[str], bool]:
+    """Journal and apply one grouped archive or trash action.
+
+    The action lock covers planning and every local rename. If a process dies,
+    the persisted ``pending`` transaction records exactly which individual
+    renames finished, allowing a later undo to recover them without guessing.
+    """
+    journal = MoveJournal(UNDO_STATE_DIR)
+    with journal.locked():
+        history = journal.load()
+        latest = journal.latest_action(history)
+        if latest is not None and latest.state == "pending":
+            for move in latest.moves:
+                reconcile_forward_rename(move)
+            if latest.has_completed_moves():
+                journal.save(history)
+                raise JournalError(
+                    "the previous unified move was interrupted; run undo before "
+                    "starting another move"
+                )
+            # The process died before any rename. It is safe to discard only
+            # this proven no-op transaction and continue with the new action.
+            history.pop()
+            journal.save(history)
+        elif latest is not None and latest.state == "undo_pending":
+            for move in latest.moves:
+                reconcile_undo_rename(move)
+            if latest.has_remaining_undo():
+                journal.save(history)
+                raise JournalError(
+                    "the previous unified undo was interrupted; run undo again "
+                    "before starting another move"
+                )
+            latest.state = "undone"
+            journal.save(history)
+
+        planned, already_resolved = plan_moves(message_ids, mode)
+        if not planned:
+            return set(), already_resolved
+
+        transaction = Transaction.create(mode, planned)
+        history.append(transaction)
+        journal.save(history)
+        touched_accounts = apply_transaction(transaction, history, journal)
+
+        if not transaction.has_completed_moves():
+            # No rename completed, so this is not an action that should mask
+            # the genuinely previous undoable transaction.
+            history.pop()
+            journal.save(history)
+
+        return touched_accounts, already_resolved or bool(touched_accounts)
+
+
+def matches_record(path: Path, move: MoveRecord) -> bool:
+    """Return whether a current file is the exact content recorded by a move."""
+    try:
+        return path.is_file() and sha256_file(path) == move.sha256
+    except OSError:
+        return False
+
+
+def reconcile_forward_rename(move: MoveRecord) -> None:
+    """Recover one forward rename interrupted after its intent was persisted."""
+    if not move.forward_started or move.moved:
+        return
+
+    source_matches = matches_record(Path(move.source), move)
+    destination_matches = matches_record(Path(move.destination), move)
+    if destination_matches and not source_matches:
+        move.moved = True
+        log(f"recovered completed forward move {move.destination}")
+    elif source_matches and not destination_matches:
+        move.forward_started = False
+        log(f"recovered unstarted forward move {move.source}")
+    else:
+        raise JournalError(
+            "cannot safely reconcile interrupted forward move "
+            f"for <{move.message_id}>"
+        )
+
+
+def reconcile_undo_rename(move: MoveRecord) -> None:
+    """Recover one reverse rename interrupted after its intent was persisted."""
+    if not move.undo_started or move.undone:
+        return
+
+    source_matches = matches_record(Path(move.source), move)
+    destination_matches = matches_record(Path(move.destination), move)
+    if source_matches and not destination_matches:
+        move.undone = True
+        log(f"recovered completed undo move {move.source}")
+    elif destination_matches and not source_matches:
+        move.undo_started = False
+        log(f"recovered unstarted undo move {move.destination}")
+    else:
+        raise JournalError(
+            "cannot safely reconcile interrupted undo move "
+            f"for <{move.message_id}>"
+        )
+
+
+def current_destination(move: MoveRecord) -> Path:
+    """Find a moved file without trusting a mutable Maildir filename blindly."""
+    expected = Path(move.destination)
+    if matches_record(expected, move):
+        return expected
+
+    try:
+        files = files_for_message_id(move.message_id)
+    except subprocess.CalledProcessError as error:
+        raise JournalError(
+            f"cannot locate <{move.message_id}> for undo: {error}"
+        ) from error
+
+    candidates = [
+        path
+        for path in files
+        if account_for_path(path) == move.account
+        and path.parent == expected.parent
+        and matches_record(path, move)
+    ]
+    if len(candidates) == 1:
+        return candidates[0]
+    if not candidates:
+        raise JournalError(
+            f"cannot safely find the moved file for <{move.message_id}>"
+        )
+    raise JournalError(
+        f"found multiple possible moved files for <{move.message_id}>"
+    )
+
+
+def preflight_undo(transaction: Transaction) -> list[tuple[MoveRecord, Path]]:
+    """Validate every remaining reverse rename before changing any file."""
+    prepared: list[tuple[MoveRecord, Path]] = []
+    sources: set[Path] = set()
+    destinations: set[Path] = set()
+
+    for move in transaction.moves:
+        if not move.moved or move.undone:
+            continue
+        source = Path(move.source)
+        if source in sources:
+            raise JournalError(f"duplicate original path in transaction: {source}")
+        if source.exists():
+            raise JournalError(f"refusing to overwrite original path: {source}")
+        if not source.parent.is_dir():
+            raise JournalError(f"original folder no longer exists: {source.parent}")
+
+        destination = current_destination(move)
+        if destination in destinations:
+            raise JournalError(
+                f"multiple records resolve to the same current file: {destination}"
+            )
+        sources.add(source)
+        destinations.add(destination)
+        prepared.append((move, destination))
+
+    if not prepared:
+        raise JournalError("the newest unified action has nothing left to undo")
+    return prepared
+
+
+def undo_last_action() -> tuple[set[str], str | None]:
+    """Reverse only the latest journaled action, preserving safe partial state.
+
+    Returns:
+        A pair of accounts with completed reverse moves and an optional error.
+        A nonempty account set with an error means a later retry will resume the
+        persisted ``undo_pending`` transaction rather than guess or overwrite.
+    """
+    journal = MoveJournal(UNDO_STATE_DIR)
+    with journal.locked():
+        history = journal.load()
+        transaction = journal.latest_action(history)
+        if transaction is None:
+            raise JournalError("no unified move has been journaled")
+        if transaction.state == "pending":
+            for move in transaction.moves:
+                reconcile_forward_rename(move)
+            if not transaction.has_completed_moves():
+                history.pop()
+                journal.save(history)
+                raise JournalError("the interrupted unified move made no changes")
+            journal.save(history)
+        elif transaction.state == "undo_pending":
+            for move in transaction.moves:
+                reconcile_undo_rename(move)
+            if transaction.has_remaining_undo():
+                journal.save(history)
+            else:
+                transaction.state = "undone"
+                journal.save(history)
+
+        if transaction.state == "undone":
+            raise JournalError("the newest unified move has already been undone")
+        if not transaction.has_remaining_undo():
+            raise JournalError("the newest unified move has nothing left to undo")
+
+        prepared = preflight_undo(transaction)
+        transaction.state = "undo_pending"
+        journal.save(history)
+
+        touched_accounts: set[str] = set()
+        errors: list[str] = []
+        for move, destination in reversed(prepared):
+            source = Path(move.source)
+            try:
+                if source.exists():
+                    raise JournalError(f"original path appeared: {source}")
+                if not matches_record(destination, move):
+                    raise JournalError(f"moved file changed: {destination}")
+                move.undo_started = True
+                journal.save(history)
+                os.rename(destination, source)
+                move.undone = True
+                touched_accounts.add(move.account)
+                log(
+                    f"undid {destination} -> {source} transaction={transaction.id}"
+                )
+            except (JournalError, OSError) as error:
+                errors.append(str(error))
+                log(f"UNDO SKIP transaction={transaction.id}: {error}")
+            finally:
+                journal.save(history)
+
+        if transaction.has_remaining_undo():
+            transaction.state = "undo_pending"
+        else:
+            transaction.state = "undone"
+        journal.save(history)
+
+        return touched_accounts, "; ".join(errors) or None
 
 
 def message_ids_from_stdin(raw: bytes) -> list[str]:
@@ -247,71 +524,14 @@ def sync_account(account: str) -> None:
         )
 
 
-def main() -> int:
-    args = sys.argv[1:]
-    if len(args) != 1 or args[0] not in ("archive", "trash"):
-        print(
-            "usage: notmuch-unified-file archive|trash",
-            file=sys.stderr,
-        )
-        return 2
-    mode = args[0]
-
-    raw = sys.stdin.buffer.read()
-
-    try:
-        message_ids = message_ids_from_stdin(raw)
-    except Exception as e:  # noqa: BLE001 -- last-resort safety net, see module docstring
-        log(f"FATAL: failed to parse piped message(s): {e!r}")
-        print(f"failed to parse piped message(s): {e}", file=sys.stderr)
-        return 1
-
-    if not message_ids:
-        log("no messages with a Message-ID header found on stdin")
-        print(
-            "no messages with a Message-ID header found on stdin",
-            file=sys.stderr,
-        )
-        return 1
-
-    touched_accounts: set[str] = set()
-    any_resolved = False
-    for message_id in message_ids:
-        try:
-            touched, resolved = move_one(message_id, mode)
-        except Exception as e:  # noqa: BLE001 -- ditto: one bad message must
-            # never abort the rest of a bulk (thread-wide) operation.
-            log(f"SKIP <{message_id}>: unexpected error: {e!r}")
-            continue
-        touched_accounts |= touched
-        any_resolved = any_resolved or resolved
-
-    if not any_resolved:
-        log(f"{mode}: could not resolve any of {len(message_ids)} message(s)")
-        print(
-            "nothing done -- see ~/Library/Logs/notmuch-unified-file.log",
-            file=sys.stderr,
-        )
-        return 1
-
+def reindex_and_sync(touched_accounts: set[str]) -> None:
+    """Reindex and push every account whose local Maildir files changed."""
     if not touched_accounts:
-        # Everything was already correctly filed -- a genuine, harmless
-        # no-op, not an error worth surfacing in aerc's status bar.
-        log(
-            f"{mode}: all {len(message_ids)} message(s) already correctly filed"
-        )
-        return 0
+        return
 
-    # notmuch-new-locked (not a bare `notmuch new`) coordinates with every
-    # other caller in this setup (mailsync, mailsync-push, notmuch-reindex)
-    # via a shared lock -- notmuch's Xapian backend only allows one writer
-    # at a time, and a second `notmuch new` while one's already running
-    # fails outright rather than queuing. A silent failure here would leave
-    # the file moved but the index stale, which is exactly what caused an
-    # earlier real symptom (message wouldn't disappear from the unified
-    # tab until switching tabs and back). Checking the result and retrying
-    # once is cheap insurance on top of the shared lock, not a replacement
-    # for it.
+    # notmuch-new-locked coordinates every caller in this setup. A retry is
+    # retained as a last-resort guard for a transient failure after the lock
+    # holder has released its directory.
     result = subprocess.run(
         [NOTMUCH_NEW_LOCKED], capture_output=True, text=True
     )
@@ -325,15 +545,84 @@ def main() -> int:
         if result.returncode != 0:
             log(f"notmuch-new-locked failed again: {result.stderr.strip()}")
 
-    # The local aerc build observes this notmuch database update through its
-    # repaired macOS FSEvents watcher and refreshes in place. Avoid an
-    # explicit scratch-query round trip here: it was the source of the old
-    # blink and selection reset in the unified list.
+    # The local aerc build observes this Xapian update through FSEvents and
+    # refreshes in place. Do not reintroduce the old scratch-query round trip.
     for account in touched_accounts:
         sync_account(account)
 
+
+def main() -> int:
+    args = sys.argv[1:]
+    if args == ["undo"]:
+        try:
+            touched_accounts, undo_error = undo_last_action()
+        except JournalError as error:
+            log(f"undo: {error}")
+            print(f"undo unavailable: {error}", file=sys.stderr)
+            return 1
+
+        reindex_and_sync(touched_accounts)
+        if undo_error:
+            log(f"undo: partially completed: {undo_error}")
+            print(
+                "undo partially completed -- see "
+                "~/Library/Logs/notmuch-unified-file.log",
+                file=sys.stderr,
+            )
+            return 1
+        if not touched_accounts:
+            log("undo: no local files were restored")
+            print("undo did not restore any local files", file=sys.stderr)
+            return 1
+
+        log(f"undo: restored accounts={sorted(touched_accounts)}")
+        return 0
+
+    if len(args) != 1 or args[0] not in ("archive", "trash"):
+        print(
+            "usage: notmuch-unified-file archive|trash|undo",
+            file=sys.stderr,
+        )
+        return 2
+    mode = args[0]
+    raw = sys.stdin.buffer.read()
+
+    try:
+        message_ids = message_ids_from_stdin(raw)
+    except Exception as error:  # noqa: BLE001 -- last-resort safety net
+        log(f"FATAL: failed to parse piped message(s): {error!r}")
+        print(f"failed to parse piped message(s): {error}", file=sys.stderr)
+        return 1
+    if not message_ids:
+        log("no messages with a Message-ID header found on stdin")
+        print(
+            "no messages with a Message-ID header found on stdin",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        touched_accounts, resolved = move_messages(message_ids, mode)
+    except JournalError as error:
+        log(f"{mode}: {error}")
+        print(f"{mode} unavailable: {error}", file=sys.stderr)
+        return 1
+
+    if not resolved:
+        log(f"{mode}: could not resolve any of {len(message_ids)} message(s)")
+        print(
+            "nothing done -- see ~/Library/Logs/notmuch-unified-file.log",
+            file=sys.stderr,
+        )
+        return 1
+    if not touched_accounts:
+        log(f"{mode}: all {len(message_ids)} message(s) already correctly filed")
+        return 0
+
+    reindex_and_sync(touched_accounts)
     log(
-        f"{mode}: moved {len(message_ids)} message(s), sync kicked off for {touched_accounts}"
+        f"{mode}: journaled {len(touched_accounts)} account move group(s), "
+        f"sync kicked off for {sorted(touched_accounts)}"
     )
     return 0
 

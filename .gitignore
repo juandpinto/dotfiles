@@ -5,3 +5,4 @@
 .config/pi/agent/sessions/
 .config/pi/agent/npm/
 .config/pi/agent/git/
+__pycache__/

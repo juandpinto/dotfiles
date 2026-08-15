@@ -4,4 +4,6 @@
 ^/README.md$
 ^/AGENTS.md$
 ^/Archive$
+^/tests$
+^/\.local/bin/__pycache__$
 ^/package-lock.json$
