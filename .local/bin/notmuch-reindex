@@ -1,0 +1,25 @@
+#!/bin/sh
+# Frequent, lightweight index refresh -- independent of the main `mailsync`
+# script (mbsync -a, then notmuch-new-locked), which only reindexes *after*
+# the full mbsync -a run completes. During a long-running sync (e.g. the
+# historical backfill, which has run for hours straight in one single
+# mbsync -a invocation), that leaves notmuch's index stale for the entire
+# duration: files keep getting renamed (flag syncs, moves) faster than the
+# index catches up, causing aerc errors like "could not get MessageInfo:
+# ... no such file or directory" for messages that have already moved again
+# by the time aerc tries to read them.
+#
+# Running notmuch-new-locked on its own, frequently, on a separate short
+# timer shrinks that staleness window from "however long mbsync -a takes"
+# down to this timer's own interval. Locking against every other caller of
+# notmuch new (mailsync, mailsync-push, notmuch-unified-file) is handled by
+# notmuch-new-locked itself, so this script doesn't need its own separate
+# lock any more -- it just waits its turn like everything else.
+#
+# The local aerc build carries a small macOS FSEvents patch that notices the
+# Xapian writes this command produces and refetches the active view itself.
+# Do not add the old aerc-refresh-view scratch-query nudge back here: it
+# causes a visible blink and can reset selection after archive/trash.
+set -e
+
+"$HOME/.local/bin/notmuch-new-locked"

@@ -1,0 +1,39 @@
+#!/bin/sh
+# Build the locally patched aerc checkout that ~/.local/bin/aerc exposes.
+#
+# This intentionally only builds the currently checked-out source. It never
+# fetches, rebases, or modifies Git history: review/update the checkout at
+# ~/.local/src/aerc first, then run this script to rebuild the local binary.
+set -eu
+
+src="${AERC_SOURCE_DIR:-$HOME/.local/src/aerc}"
+
+if [ ! -d "$src/.git" ]; then
+	echo "aerc-fsevents-build: no Git checkout at $src" >&2
+	exit 1
+fi
+
+if ! command -v brew >/dev/null; then
+	echo "aerc-fsevents-build: Homebrew is required for aerc resources and notmuch" >&2
+	exit 1
+fi
+
+aerc_prefix="$(brew --prefix aerc)"
+notmuch_prefix="$(brew --prefix notmuch)"
+
+if ! git -C "$src" diff --quiet; then
+	echo "aerc-fsevents-build: building the local Git diff in $src" >&2
+fi
+
+(
+	cd "$src"
+	CGO_CFLAGS="-I$notmuch_prefix/include" \
+	CGO_LDFLAGS="-L$notmuch_prefix/lib" \
+	GOFLAGS="${GOFLAGS:+$GOFLAGS }-tags=notmuch" \
+	make -B aerc \
+		VERSION="$(git describe --tags --always)-fsevents-local" \
+		SHAREDIR="$aerc_prefix/share/aerc" \
+		LIBEXECDIR="$aerc_prefix/libexec/aerc"
+)
+
+"$src/aerc" --version

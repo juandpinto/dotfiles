@@ -1,0 +1,69 @@
+#!/bin/sh
+# Manual + scheduled mail sync: mbsync pulls/pushes IMAP <-> local Maildir,
+# then notmuch re-indexes what changed.
+#
+# Run this by hand any time you want ("mailsync" from anywhere, since
+# ~/.local/bin is on PATH) -- the launchd timer just calls this same script
+# periodically in the background; it is not the only way to trigger a sync.
+set -e
+
+# Guard against overlapping runs: mbsync's own per-mailbox lock just makes a
+# second concurrent invocation block silently (confirmed empirically) rather
+# than fail fast, which would let launchd-triggered runs pile up as stuck
+# processes during a long initial/historical backfill. `mkdir` is atomic on
+# POSIX filesystems, so this is a simple, dependency-free mutex.
+#
+# Self-healing against a stale lock: a plain `mkdir` mutex has no way to
+# tell "still genuinely running" apart from "the last holder died without
+# cleaning up" -- and the trap below that normally removes it on exit
+# cannot fire if the process is killed with an uncatchable signal (this
+# happened for real: `launchctl kickstart -k ...` sends SIGKILL, which
+# killed a mid-run mailsync outright and left this lock orphaned for two
+# days, silently skipping every scheduled sync in that window with no
+# error visible anywhere except this script's own "already running" log
+# line repeating harmlessly forever). To make that failure mode
+# self-correcting instead of silent and permanent, the lock directory
+# also holds the PID that created it; if `mkdir` fails, check whether that
+# PID is still actually alive before treating the lock as genuinely held,
+# and reclaim it if not.
+LOCKDIR="$HOME/.local/state/mailsync.lock"
+LOCKPID="$LOCKDIR/pid"
+
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+	holder="$(cat "$LOCKPID" 2>/dev/null)"
+	if [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null; then
+		echo "mailsync: already running (lock at $LOCKDIR held by pid $holder), skipping" >&2
+		exit 0
+	fi
+	echo "mailsync: found a stale lock (holder pid $holder not running), reclaiming" >&2
+	rm -rf "$LOCKDIR"
+	if ! mkdir "$LOCKDIR" 2>/dev/null; then
+		echo "mailsync: lost the race reclaiming $LOCKDIR, skipping" >&2
+		exit 0
+	fi
+fi
+echo $$ >"$LOCKPID"
+trap 'rm -rf "$LOCKDIR"' EXIT
+
+# macOS ships its own proprietary SASL PLAIN plugin
+# (passwordserver_saslplugins) in /usr/lib/sasl2, which isync/mbsync's
+# system-cyrus-sasl linkage picks up by default and which fails with a
+# cryptic "invalid parameter" error during PLAIN auth. Point SASL_PATH at
+# Homebrew's own cyrus-sasl plugin dir instead so the standard PLAIN plugin
+# is used.
+export SASL_PATH="/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
+
+# Deliberately not using `set -e` for this part: mbsync can (and, over a
+# long-running sync, does) hit transient per-channel errors -- socket
+# resets, timeouts on a very long-lived IMAP connection, a channel briefly
+# locked by another instance -- without those being fatal to the sync as a
+# whole. If `mbsync -a` returned non-zero and the script aborted here
+# (which it used to, under the blanket `set -e` above), `notmuch new` would
+# never run for that cycle -- silently skipping reindexing of whatever DID
+# download successfully before the error, compounding index staleness on
+# top of the normal end-of-run cadence. Always reindex whatever's actually
+# on disk, regardless of whether mbsync fully succeeded.
+if ! mbsync -a; then
+	echo "mailsync: mbsync -a exited non-zero (see mailsync.err.log) -- reindexing anyway" >&2
+fi
+"$HOME/.local/bin/notmuch-new-locked"

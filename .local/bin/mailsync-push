@@ -1,0 +1,23 @@
+#!/bin/sh
+# Triggered by aerc's mail-deleted/mail-added hooks (see aerc.conf [hooks])
+# to push a moved/archived/trashed message to the server right away, rather
+# than waiting for the next scheduled `mailsync` run.
+#
+# aerc sets $AERC_ACCOUNT and $AERC_FOLDER when invoking this.
+set -e
+
+export SASL_PATH="/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
+
+if [ "$AERC_ACCOUNT" = "icloud" ]; then
+	# Single wildcard channel named "icloud" covers every folder directly,
+	# so it can be addressed as icloud:<folder>.
+	timeout 60 mbsync "icloud:$AERC_FOLDER" || true
+else
+	# Gmail's channels are per-folder (gmail-inbox, etc.), not
+	# individually addressable as "$AERC_ACCOUNT:$AERC_FOLDER" -- sync the
+	# whole group instead. Still much faster than a full `mbsync -a` since
+	# it's scoped to just this one account.
+	timeout 60 mbsync "$AERC_ACCOUNT" || true
+fi
+
+"$HOME/.local/bin/notmuch-new-locked"

@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+"""Account-aware archive/trash for aerc's unified notmuch tab.
+
+aerc's built-in archive/move commands use one static destination per account, but a unified notmuch account has no per-message awareness of whether a message belongs to iCloud or Gmail. This helper receives the selected raw message(s), resolves every Message-ID to its actual Maildir file(s) through notmuch, and moves each file to that real account's Archive or Trash folder.
+
+After the move it runs the shared lock-guarded notmuch reindex and starts a targeted mbsync push. The locally patched aerc build observes the resulting Xapian change through its fixed macOS FSEvents watcher, so it updates the active view natively; this script deliberately does not force an IPC `:cf` refresh.
+"""
+
+import email
+import mailbox
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+MAILDIR = Path.home() / "mail"
+LOG_PATH = Path.home() / "Library/Logs/notmuch-unified-file.log"
+SASL_PATH = "/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
+NOTMUCH_NEW_LOCKED = str(Path.home() / ".local/bin/notmuch-new-locked")
+
+# Real destination folder per (account, mode). Every account/mode
+# combination we actually use must be listed here explicitly -- there is no
+# fallback, by design: an unrecognized account or mode should fail loudly,
+# not guess.
+DEST_FOR = {
+    ("icloud", "archive"): "Archive",
+    ("icloud", "trash"): "Deleted Messages",
+    ("gmail", "archive"): "Archive",
+    ("gmail", "trash"): "Trash",
+}
+
+# Matches mbsync/OfflineIMAP's UID-encoding convention in maildir filenames.
+# Stripped on move for the same reason aerc's own maildir backend strips it
+# (see worker/lib/maildir.go's StripUIDFromMessageFilename upstream): a
+# message landing in a different real IMAP folder needs a fresh UID there
+# anyway, and keeping the old one confuses mbsync's own tracking.
+UID_RE = re.compile(r",U=\d+")
+
+
+def log(message: str) -> None:
+    """Append a timestamped line to the persistent log file.
+
+    Needed because this script is invoked via aerc's `:pipe -b`
+    (background mode), which shows nothing on success and only a one-line
+    status on failure -- this log is the actual audit trail.
+    """
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    timestamp = subprocess.run(
+        ["date", "+%Y-%m-%d %H:%M:%S"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    with LOG_PATH.open("a") as f:
+        f.write(f"[{timestamp}] {message}\n")
+
+
+def account_for_path(path: Path) -> str | None:
+    """Return the real account name a maildir file currently lives under.
+
+    Args:
+        path: Absolute path to a message file somewhere under `MAILDIR`.
+
+    Returns:
+        The account directory name (e.g. "icloud"), or None if `path`
+        isn't under a recognized account directory.
+    """
+    try:
+        rel = path.relative_to(MAILDIR)
+    except ValueError:
+        return None
+    if not rel.parts:
+        return None
+    account = rel.parts[0]
+    return account if account in ("icloud", "gmail") else None
+
+
+def files_for_message_id(message_id: str) -> list[Path]:
+    """Look up a message's current real file path(s) via notmuch.
+
+    This is the key step that makes account detection reliable: rather
+    than trusting anything about which tab/view a message was acted on
+    from, it asks notmuch where the message *actually* lives on disk right
+    now.
+
+    Args:
+        message_id: A Message-ID value, with or without surrounding angle
+            brackets (both are normalized to notmuch's bare-ID form here).
+    """
+    message_id = message_id.strip().removeprefix("<").removesuffix(">")
+    result = subprocess.run(
+        ["notmuch", "search", "--output=files", f'id:"{message_id}"'],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [Path(line) for line in result.stdout.splitlines() if line.strip()]
+
+
+def strip_uid(name: str) -> str:
+    """Remove an mbsync-style ",U=<n>" suffix from a maildir filename."""
+    return UID_RE.sub("", name)
+
+
+def move_one(message_id: str, mode: str) -> tuple[set[str], bool]:
+    """Move every real file for one message into its account's real folder.
+
+    Args:
+        message_id: The message's Message-ID header value (with or without
+            surrounding angle brackets).
+        mode: "archive" or "trash".
+
+    Returns:
+        A tuple of (touched, resolved):
+
+        - touched: real account names actually moved to (0, 1, or in the
+          rare case of a message duplicated across both accounts, 2), so
+          the caller knows which accounts need a follow-up sync.
+        - resolved: True if this message ended up correctly filed either
+          way -- whether that meant a real move, or it was already sitting
+          in the right place. False only when nothing could be done at all
+          (not found, unrecognized account, no destination mapping, or an
+          OS-level error). This distinction lets the caller tell "already
+          fine, nothing to do" apart from "something is actually wrong" --
+          re-archiving an already-archived message shouldn't surface as a
+          red error in aerc.
+    """
+    touched: set[str] = set()
+    resolved = False
+    try:
+        files = files_for_message_id(message_id)
+    except subprocess.CalledProcessError as e:
+        log(f"SKIP <{message_id}>: notmuch lookup failed: {e}")
+        return touched, resolved
+    if not files:
+        log(f"SKIP <{message_id}>: not found in notmuch index")
+        return touched, resolved
+
+    for path in files:
+        # Everything below is one file at a time, deliberately isolated so a
+        # single problem file (vanished mid-batch, permission error, a
+        # concurrent sync touching the same file) can't abort the rest of a
+        # bulk operation -- e.g. archiving an entire marked thread should
+        # still finish for every message it *can* handle even if one can't.
+        try:
+            account = account_for_path(path)
+            if account is None:
+                log(f"SKIP {path}: not under a recognized account directory")
+                continue
+
+            dest_folder = DEST_FOR.get((account, mode))
+            if dest_folder is None:
+                log(
+                    f"SKIP {path}: no destination for account={account} mode={mode}"
+                )
+                continue
+
+            dest_dir = MAILDIR / account / dest_folder / "cur"
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest_path = dest_dir / strip_uid(path.name)
+
+            if path.parent == dest_dir:
+                # Already logically in the right folder (e.g. re-archiving
+                # an already-archived message) -- comparing containing
+                # directories rather than exact filenames, since a real
+                # mbsync-synced file still carries its ",U=<n>" suffix and
+                # would otherwise never exactly equal the stripped `dest_path`
+                # even when it's already in the correct place. Confirmed via
+                # `mbsync -V --dry-run` that renaming in place (stripping the
+                # suffix) is harmless either way -- mbsync doesn't use the
+                # local filename as its identity -- but skipping it avoids a
+                # pointless rename + resync on a no-op.
+                log(f"SKIP {path}: already in {dest_dir}")
+                resolved = True
+                continue
+            if dest_path.exists():
+                log(f"SKIP {path}: destination already exists at {dest_path}")
+                continue
+
+            os.rename(path, dest_path)
+            log(f"moved {path} -> {dest_path}")
+            touched.add(account)
+            resolved = True
+        except OSError as e:
+            log(f"SKIP {path}: {e}")
+            continue
+
+    return touched, resolved
+
+
+def message_ids_from_stdin(raw: bytes) -> list[str]:
+    """Parse one or more RFC822 messages from already-read stdin bytes.
+
+    aerc's `:pipe` sends a single raw RFC822 message when only one message
+    is being acted on, but switches to mbox format (with "From " envelope
+    separators) when multiple messages are marked. Both are handled here;
+    the mbox parser needs a real file, so the bytes are spooled to a temp
+    file first.
+    """
+    if not raw.startswith(b"From "):
+        msg = email.message_from_bytes(raw)
+        message_id = msg.get("Message-ID")
+        return [message_id.strip()] if message_id else []
+
+    message_ids = []
+    with tempfile.NamedTemporaryFile(suffix=".mbox") as tmp:
+        tmp.write(raw)
+        tmp.flush()
+        for msg in mailbox.mbox(tmp.name):
+            message_id = msg.get("Message-ID")
+            if message_id:
+                message_ids.append(message_id.strip())
+            else:
+                log("SKIP a message with no Message-ID header")
+    return message_ids
+
+
+def sync_account(account: str) -> None:
+    """Kick off a targeted sync for one real account, fully detached.
+
+    Deliberately fire-and-forget: `mbsync` involves a real network
+    connection (fresh TLS+SASL handshake to iCloud/Gmail each time), which
+    routinely takes a real 1-3+ seconds -- and since aerc's `:pipe -b`
+    doesn't update its status bar until this whole script exits, waiting on
+    that synchronously was the dominant cause of the "Fetching messages..."
+    lag observed in practice (the local move plus reindex complete in a
+    small fraction of that time on their own). Spawned with
+    `start_new_session=True` so it keeps
+    running independently after this script's own process has already
+    exited -- the same detached-background pattern aerc's own hooks use
+    (see aerc.conf's [hooks] section) and for the same reason.
+    """
+    env = os.environ.copy()
+    env["SASL_PATH"] = SASL_PATH
+    channel = "icloud" if account == "icloud" else account
+    log(f"sync for {channel} handed off to a detached background process")
+    with LOG_PATH.open("a") as log_file:
+        subprocess.Popen(
+            ["timeout", "60", "mbsync", channel],
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=log_file,
+            stderr=log_file,
+            start_new_session=True,
+        )
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    if len(args) != 1 or args[0] not in ("archive", "trash"):
+        print(
+            "usage: notmuch-unified-file archive|trash",
+            file=sys.stderr,
+        )
+        return 2
+    mode = args[0]
+
+    raw = sys.stdin.buffer.read()
+
+    try:
+        message_ids = message_ids_from_stdin(raw)
+    except Exception as e:  # noqa: BLE001 -- last-resort safety net, see module docstring
+        log(f"FATAL: failed to parse piped message(s): {e!r}")
+        print(f"failed to parse piped message(s): {e}", file=sys.stderr)
+        return 1
+
+    if not message_ids:
+        log("no messages with a Message-ID header found on stdin")
+        print(
+            "no messages with a Message-ID header found on stdin",
+            file=sys.stderr,
+        )
+        return 1
+
+    touched_accounts: set[str] = set()
+    any_resolved = False
+    for message_id in message_ids:
+        try:
+            touched, resolved = move_one(message_id, mode)
+        except Exception as e:  # noqa: BLE001 -- ditto: one bad message must
+            # never abort the rest of a bulk (thread-wide) operation.
+            log(f"SKIP <{message_id}>: unexpected error: {e!r}")
+            continue
+        touched_accounts |= touched
+        any_resolved = any_resolved or resolved
+
+    if not any_resolved:
+        log(f"{mode}: could not resolve any of {len(message_ids)} message(s)")
+        print(
+            "nothing done -- see ~/Library/Logs/notmuch-unified-file.log",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not touched_accounts:
+        # Everything was already correctly filed -- a genuine, harmless
+        # no-op, not an error worth surfacing in aerc's status bar.
+        log(
+            f"{mode}: all {len(message_ids)} message(s) already correctly filed"
+        )
+        return 0
+
+    # notmuch-new-locked (not a bare `notmuch new`) coordinates with every
+    # other caller in this setup (mailsync, mailsync-push, notmuch-reindex)
+    # via a shared lock -- notmuch's Xapian backend only allows one writer
+    # at a time, and a second `notmuch new` while one's already running
+    # fails outright rather than queuing. A silent failure here would leave
+    # the file moved but the index stale, which is exactly what caused an
+    # earlier real symptom (message wouldn't disappear from the unified
+    # tab until switching tabs and back). Checking the result and retrying
+    # once is cheap insurance on top of the shared lock, not a replacement
+    # for it.
+    result = subprocess.run(
+        [NOTMUCH_NEW_LOCKED], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        log(
+            f"notmuch-new-locked failed, retrying once: {result.stderr.strip()}"
+        )
+        result = subprocess.run(
+            [NOTMUCH_NEW_LOCKED], capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            log(f"notmuch-new-locked failed again: {result.stderr.strip()}")
+
+    # The local aerc build observes this notmuch database update through its
+    # repaired macOS FSEvents watcher and refreshes in place. Avoid an
+    # explicit scratch-query round trip here: it was the source of the old
+    # blink and selection reset in the unified list.
+    for account in touched_accounts:
+        sync_account(account)
+
+    log(
+        f"{mode}: moved {len(message_ids)} message(s), sync kicked off for {touched_accounts}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

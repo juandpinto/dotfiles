@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""Manually force a running aerc instance to refetch the visible view.
+
+The local aerc build at `~/.local/src/aerc` carries a macOS FSEvents patch that notices notmuch/Xapian updates natively, so no production hook or timer invokes this helper anymore. Keep it as a diagnostic fallback for an old/unpatched binary or a future regression; its scratch-query round trip is intentionally visible and can reset selection after a message leaves the current query.
+
+Historical context for the old workaround: an unpatched aerc 0.22.0 session failed to notice relevant filesystem events, and `lib/msgstore.go`'s handling of a freshly fetched `DirectoryContents`/`DirectoryThreaded` response reuses the *already-cached* `MessageInfo` for any UID it already knows about, rather than replacing it with fresh data:
+
+    if msg, ok := store.Messages[uid]; ok {
+        newMap[uid] = msg  // stale copy kept, whatever else changed
+    }
+
+This only correctly reflects *membership* changes (a message leaving the
+query, e.g. archived out of Inbox, is dropped because its UID simply isn't
+in the new result set at all -- membership is always freshly computed from
+the query itself, cache or not). It does *not* refresh anything else about
+a message that's already been seen once, which matters for this script's
+second, more limited use case: refreshing a message's own displayed
+flags/tags after marking it read, flagging it, etc.
+
+The part that *does* work reliably, confirmed repeatedly: forcing a `:cf`
+round trip through a guaranteed-different scratch query
+(`tag:__aerc_refresh_anchor__`, a tag that will never exist on any real
+message) always correctly reflects membership changes, regardless of
+what the previous/current folder happened to be -- this is the only thing
+notmuch-unified-file needs (a message archived/trashed out of the current
+view), and it's confirmed solid for that.
+
+Why this script was needed for the unpatched build, confirmed precisely
+(not just suspected) via a fully isolated, disposable test environment -- a
+separate $HOME/config/socket/Maildir/notmuch-DB, so this could be tested
+by deliberately reproducing the exact race without any risk to real mail
+or a real running session (see ~/mail/README.md for the full write-up):
+aerc's own filesystem watcher on macOS (`lib/watchers/fsevents.go`) only
+reacts to `ItemCreated`/`ItemRenamed`/`ItemRemoved` FSEvents flags --
+never plain content modification. Confirmed live in that sandbox that
+neither a genuinely new, cleanly-indexed message nor a fully-caught-up
+reindex of a previously-stale one *ever* triggers a visible update in an
+already-open aerc session, no matter how long you wait (tested up to 30s
+repeatedly, both for the notmuch:// backend and the plain maildir://
+backend used by non-unified accounts) -- confirmed this isn't a
+latency/timing issue and isn't specific to this sandbox by independently
+watching the same paths with `fswatch` (a well-known, unrelated tool),
+which *did* see the events instantly every time. So the gap is real, and
+it is total: an already-running aerc session will not reflect new mail,
+moved mail, or tag changes on its own, ever, without something forcing an
+explicit re-query. This script is that explicit re-query. Restarting
+aerc, or manually switching folders/tabs, are the only other ways to
+force the same thing.
+
+The part that does *not* fully work, despite extensive attempts (`:cf` to
+a different folder and back, external `notmuch tag` + `notmuch new`, even
+just waiting 15-20s for the filesystem watcher to catch up on its own --
+see above for why that specifically can never work): once a specific
+message has been fetched into a folder's MessageStore (which aerc caches
+for the lifetime of the account/session, keyed by folder name --
+confirmed via `AccountView`'s `case *types.Directory` in `app/account.go`,
+which only calls `newStore()` if no store already exists for that name),
+nothing short of restarting aerc was found to force a fresh re-fetch of
+*that message's own* flags -- the underlying tag/flag change itself is
+always instant and correct (confirmed via notmuch/the Maildir file
+directly throughout testing), only the already-rendered list can lag for
+a message it's already cached. This script's `flag-changed`/`tag-modified`
+hook usage (see aerc.conf's [hooks] section) and its new periodic usage
+(see ~/.local/bin/notmuch-reindex) still help in the cases they can -- a
+message that's new to the current session/folder view -- but aren't a
+complete fix for a message that's already been sitting in view for a
+while. Filed as a known limitation in ~/mail/README.md rather than
+silently assumed fixed.
+
+A SECOND, separate gap (found while adding viewer-context bindings for
+archive/trash/flag): `:cf` requires aerc's `MESSAGE_LIST` command context
+(confirmed in `commands/commands.go`'s `CurrentContext()`, which derives
+context from the currently *selected tab's type* -- `*app.AccountView` for
+a message list, `*app.MessageViewer` for an open message -- and opening a
+message creates a genuinely separate tab, confirmed: `NewTab(viewer,
+msg.Envelope.Subject)` in app/msglist.go). So acting from *within* the
+viewer means `:cf` genuinely doesn't exist in that context: it fails with
+"Unknown command cf", logged but otherwise silent, leaving the list stale
+with no visible error.
+
+The natural fix attempt -- `:change-tab unified` (GLOBAL context, so it
+works from the viewer) before the scratch-query trick, then `:change-tab
+-` to switch back -- turned out to be fundamentally broken, not just
+fiddly. `:cf`'s own completion handler (`handleDirOpenResponse` in
+commands/account/cf.go) unconditionally calls `acct.Select()`, which
+*also* pushes onto the tab history (`lib/ui/tab.go`'s `selectPriv`, which
+pushes the tab being left *every* time, even onto itself). Two `:cf` calls
+means two extra self-referencing pushes of the `unified` tab on top of the
+one real entry for the viewer -- and a history stack's pop-then-push-
+current is a net-zero-depth operation *by construction*, so once the top
+of the stack is stuck on self-references to the tab you're already on, no
+number of further `:change-tab -` calls can ever dig past them to reach
+the viewer entry underneath. Confirmed by literally tracing the push/pop
+sequence by hand and reproducing it live: after 1, 2, and 3 additional
+`:change-tab -` calls, focus stayed stuck on `unified` every time.
+
+The real fix: `:change-tab "<exact name>"` does a direct name lookup
+(`SelectName` in lib/ui/tab.go) -- it doesn't touch the history stack's
+ordering at all, so it works regardless of how polluted the stack has
+become. Since a viewer tab's name is exactly the message's own Subject
+(no truncation at the name level, only in the tab bar's rendering), a
+caller that actually has the message's Subject available can reliably
+switch back by name instead of by history. notmuch-unified-file has this
+(it already parses the piped message), so it passes `--restore-tab
+"<subject>"` when invoked from `[view:account=unified]` in binds.conf.
+
+The `flag-changed`/`tag-modified` hooks do *not* have this -- aerc's own
+hook variables (AERC_ACCOUNT, AERC_FOLDER, etc.) never include a per-
+message subject or any other stable identifier for the exact tab. Rather
+than guess (and risk leaving the user stranded on the wrong tab, which
+would be a *worse*, more disruptive bug than a merely-stale flag icon),
+this script's default behavior (no --restore-tab given) skips the tab
+round trip entirely and only does the plain folder-level scratch-query
+refresh. That still works correctly when triggered from the message list
+(the originally tested and confirmed scope), and simply no-ops (logged,
+never visibly disruptive) when triggered from within the viewer -- a
+known, accepted gap, consistent with the already-documented flags/read-
+status staleness limitation above.
+
+Talks to aerc's own IPC protocol directly (a JSON request over a Unix
+socket at ~/Library/Application Support/aerc.sock, confirmed against the
+source) rather than shelling out to the `aerc` binary itself -- running
+`aerc ":some-command"` falls back to *starting a whole new aerc instance*
+if no socket is currently reachable, which would be a seriously unwanted
+side effect from a background script/hook. Connecting directly means this
+only ever acts when a real instance is confirmed reachable, and silently
+does nothing otherwise.
+
+Usage:
+  aerc-refresh-view                    # folder-level refresh only
+  aerc-refresh-view --restore-tab NAME # also safe from within a viewer
+
+Former automatic callers, all removed after installing the local FSEvents patch:
+  - ~/.local/bin/notmuch-reindex, unconditionally, on its own 20s timer --
+    the main defense against the "aerc never notices on its own" gap
+    above, bounding it to roughly that interval instead of leaving it
+    unbounded (see that script's own comment).
+  - notmuch-unified-file, after an external archive/trash file move, with
+    --restore-tab when invoked from [view:account=unified] (fully solved).
+  - aerc.conf's `flag-changed`/`tag-modified` hooks (scoped to the unified
+    account only -- see aerc.conf's [hooks] section), for in-app actions
+    like marking a message read, with no --restore-tab (partially helped,
+    not fully solved from within the viewer -- see above).
+
+For manual diagnostic use, if aerc isn't running or the focused tab/context cannot accept `:cf` (a maildir:// account tab or a message viewer without --restore-tab), the IPC call fails and is logged rather than launching a new aerc process.
+"""
+
+import json
+import socket
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+LOG_PATH = Path.home() / "Library/Logs/aerc-refresh-view.log"
+AERC_SOCK = Path.home() / "Library/Application Support/aerc.sock"
+SCRATCH_QUERY = "tag:__aerc_refresh_anchor__"
+UNIFIED_TAB = "unified"
+# Small delay between successive IPC calls. Confirmed necessary by testing
+# (not just theoretical): firing these back-to-back with zero delay is a
+# real, reproducible race -- aerc's own response to each command comes
+# back and reports success before its *effect* has actually settled, so
+# the next command in the sequence can be silently ineffective despite
+# every individual step reporting no error. 0.1s reliably avoided this
+# across repeated test runs; this all still happens fully in the
+# background, so the extra ~0.3-0.4s total across a few calls is not
+# perceptible to the user (unlike the earlier, unrelated slowness this
+# whole mechanism replaced, which was caused by something else entirely --
+# see notmuch-unified-file's sync_account()).
+IPC_SETTLE_DELAY = 0.1
+
+
+def log(message: str) -> None:
+    with LOG_PATH.open("a") as f:
+        f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}\n")
+
+
+def aerc_ipc_command(args: list[str]) -> bool:
+    """Send a command to a running aerc instance via its IPC socket.
+
+    Returns True only if a real instance was reachable *and* aerc executed
+    the command without error. False covers both "no instance reachable"
+    and "aerc reported an error" -- both are logged, distinctly, so a
+    caller can't mistake one for the other in the log.
+
+    Sleeps briefly before returning -- see IPC_SETTLE_DELAY.
+    """
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.settimeout(2)
+            s.connect(str(AERC_SOCK))
+            s.sendall((json.dumps({"arguments": args}) + "\n").encode())
+            response = s.makefile().readline()
+        resp = json.loads(response) if response else {}
+        if resp.get("error"):
+            log(f"aerc IPC command {args} returned an error: {resp['error']}")
+            return False
+        return True
+    except OSError as e:
+        log(f"aerc IPC not reachable, skipping view refresh: {e}")
+        return False
+    finally:
+        time.sleep(IPC_SETTLE_DELAY)
+
+
+def refresh_folder() -> None:
+    """Plain folder-level scratch-query round trip (see module docstring).
+
+    Only reliable when already in MESSAGE_LIST context. Silently (but
+    loggedly) fails otherwise -- callers that might run from within the
+    viewer should use restore_tab_and_refresh() instead.
+    """
+    if aerc_ipc_command([f":cf {SCRATCH_QUERY}"]):
+        aerc_ipc_command([":cf -"])
+
+
+def restore_tab_and_refresh(restore_tab: str) -> None:
+    """Safe to call from any tab, including a message viewer.
+
+    Switches to the `unified` tab by name (works from anywhere, GLOBAL
+    context), does the folder-level refresh now that MESSAGE_LIST context
+    is guaranteed, then switches back to `restore_tab` *by name* rather
+    than via tab history (`:change-tab -`) -- see the module docstring for
+    why the history-based approach is fundamentally unreliable here.
+    """
+    if aerc_ipc_command([f":change-tab {UNIFIED_TAB}"]):
+        refresh_folder()
+        # Always attempt to switch back, even if the refresh itself
+        # failed above -- leaving the user stranded on a tab they didn't
+        # ask to switch to would be worse than a stale flag display.
+        aerc_ipc_command([f':change-tab "{restore_tab}"'])
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    if len(args) == 2 and args[0] == "--restore-tab":
+        restore_tab_and_refresh(args[1])
+    elif not args:
+        refresh_folder()
+    else:
+        print("usage: aerc-refresh-view [--restore-tab NAME]", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,40 @@
+#!/bin/sh
+# Single, shared entry point for every "notmuch new" call across this whole
+# mail setup (mailsync, mailsync-push, notmuch-reindex,
+# notmuch-unified-file all call this instead of `notmuch new` directly).
+#
+# Why this exists: notmuch's Xapian backend only allows one writer at a
+# time -- a second `notmuch new` invocation while another is still running
+# fails outright (a lock conflict), it doesn't queue or wait. With four
+# independent scripts on their own schedules all wanting to reindex
+# (a 3-minute full sync, a 20-second lightweight catch-up, an instant
+# push-on-move hook, and an on-demand call from every unified-tab
+# archive/trash action), collisions were a real, confirmed possibility, and
+# a silently-failed reindex left the *file* moved but the *index* stale --
+# exactly the "message doesn't disappear until I switch tabs and back"
+# symptom this fixes: switching tabs forces aerc to re-run its query, which
+# picks up whatever the *next* successful reindex (from any source) already
+# caught up on -- but that could be many seconds away.
+#
+# This lock serializes all four so a collision can never happen in the
+# first place, rather than trying to detect and recover from one after the
+# fact. mkdir is atomic on POSIX filesystems, so this is a simple,
+# dependency-free mutex, same pattern as mailsync's own lock.
+set -e
+
+LOCKDIR="$HOME/.local/state/notmuch-new.lock"
+tries=0
+while ! mkdir "$LOCKDIR" 2>/dev/null; do
+	tries=$((tries + 1))
+	if [ "$tries" -ge 100 ]; then
+		# ~10s of waiting (100 * 0.1s) -- notmuch new is normally fast, so
+		# something is unusually stuck. Fail loudly rather than hang
+		# indefinitely; the caller's own retry/schedule will pick it up.
+		echo "notmuch-new-locked: gave up waiting for $LOCKDIR after ${tries} tries" >&2
+		exit 1
+	fi
+	sleep 0.1
+done
+trap 'rmdir "$LOCKDIR"' EXIT
+
+notmuch new
