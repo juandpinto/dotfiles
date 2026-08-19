@@ -51,6 +51,14 @@ vim.api.nvim_create_autocmd('PackChanged', {
             return
         end
 
+        if name == 'jupynvim' then
+            local install = assert(
+                loadfile(ev.data.path .. '/lua/jupynvim/backend/install.lua')
+            )()
+            install.run({ dir = ev.data.path })
+            return
+        end
+
         if name == 'LuaSnip' then
             if vim.fn.has('win32') ~= 1 and vim.fn.executable('make') == 1 then
                 run_build(name, { 'make', 'install_jsregexp' }, ev.data.path)

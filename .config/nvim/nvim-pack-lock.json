@@ -62,6 +62,10 @@
       "rev": "88cd340407b959f1168af2a6ae5a3d180e6df32c",
       "src": "https://github.com/Vigemus/iron.nvim"
     },
+    "jupynvim": {
+      "rev": "47a31d9a7bcbe1f68a8cc245f28382ad9df11b65",
+      "src": "https://github.com/sheng-tse/jupynvim"
+    },
     "lazygit.nvim": {
       "rev": "a04ad0dbc725134edbee3a5eea29290976695357",
       "src": "https://github.com/kdheepak/lazygit.nvim"
