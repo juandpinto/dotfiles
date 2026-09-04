@@ -83,6 +83,30 @@ config.keys = {
         mods = 'ALT',
         action = action.DisableDefaultAssignment,
     },
+
+    -- WezTerm otherwise uses these for font-size changes. Let applications
+    -- receive them instead: pi uses Ctrl-minus for undo, while zsh's Ctrl-_
+    -- undo binding uses the corresponding control character.
+    {
+        key = '-',
+        mods = 'CTRL',
+        action = action.DisableDefaultAssignment,
+    },
+    {
+        key = '-',
+        mods = 'CTRL|SHIFT',
+        action = action.DisableDefaultAssignment,
+    },
+    {
+        key = '_',
+        mods = 'CTRL',
+        action = action.DisableDefaultAssignment,
+    },
+    {
+        key = '_',
+        mods = 'CTRL|SHIFT',
+        action = action.DisableDefaultAssignment,
+    },
 }
 
 config.enable_tab_bar = false
