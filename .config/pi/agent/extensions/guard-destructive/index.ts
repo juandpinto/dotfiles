@@ -25,7 +25,8 @@ const SAFE_ROOTS = process.env.TMPDIR
  * its real scope. These never run, regardless of UI availability.
  *
  * Tier 2 (confirm): commands that are *plausibly* destructive but have
- * completely normal everyday uses (`rm -rf node_modules`, `sudo`, etc.).
+ * completely normal everyday uses (`rm -rf some-project-directory`, broad
+ * permission changes, etc.).
  * These pause for an interactive yes/no via `ctx.ui.select`. If there's no
  * UI to ask (print/JSON/RPC-without-UI mode), they fail closed (block)
  * rather than silently proceeding.

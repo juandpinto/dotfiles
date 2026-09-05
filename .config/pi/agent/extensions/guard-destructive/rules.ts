@@ -485,7 +485,6 @@ export function isRmSegmentAutoAllowed(
 	return targets.every((t) => isRmTargetSafe(t, cwd, homeDir, safeRoots));
 }
 
-const SUDO = /\bsudo\b/i;
 const CHMOD_CHOWN_777 = /\b(chmod|chown)\b[^&|;\n]*\b(777|a\+rwx)\b/i;
 
 export interface Tier2Options {
@@ -504,7 +503,6 @@ export function isTier2Destructive(command: string, options: Tier2Options = {}):
 		return !isRmSegmentAutoAllowed(segment, cwd, options.cwdContext?.homeDir, safeRoots);
 	});
 	if (needsConfirmRm) return true;
-	if (SUDO.test(command)) return true;
 	if (CHMOD_CHOWN_777.test(command)) return true;
 	return false;
 }

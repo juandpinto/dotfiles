@@ -150,7 +150,13 @@ for (const [cmd, expected] of unsafeSignalCases) {
 // ── Tier 2: confirm-worthy but not catastrophic ─────────────────────────
 const tier2Cases = [
 	["rm -rf some-unrecognized-dir", true], // recursive+force on a target that isn't auto-allowed
-	["sudo apt-get install foo", true],
+	// Privilege elevation alone is deliberately not a Tier 2 confirmation trigger.
+	["sudo apt-get install foo", false],
+	["sudo systemctl restart ssh", false],
+	["ssh pinto-ionos 'sudo systemctl restart ssh'", false],
+	// sudo does not bypass the remaining Tier 2 checks.
+	["sudo rm -rf some-unrecognized-dir", true],
+	["sudo chmod 777 file.txt", true],
 	["chmod 777 file.txt", true],
 	["chmod -R 777 .", true],
 	["echo hello", false],
