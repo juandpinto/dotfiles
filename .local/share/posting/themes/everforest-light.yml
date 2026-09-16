@@ -1,0 +1,47 @@
+# Everforest light, medium contrast theme for Posting.
+# Palette: sainnhe/everforest's official medium contrast light palette,
+# shared with the rest of this dotfiles repository.
+name: everforest-light
+primary: "#3a94c5"
+secondary: "#829181"
+background: "#fdf6e3"
+surface: "#f4f0d9"
+panel: "#efebd4"
+warning: "#dfa000"
+error: "#f85552"
+success: "#8da101"
+accent: "#35a77c"
+dark: false
+
+text_area:
+  gutter: "#939f91"
+  cursor: "#fdf6e3 on #3a94c5"
+  cursor_line: "on #f4f0d9"
+  cursor_line_gutter: "#5c6a72 on #f4f0d9"
+  matched_bracket: "bold #dfa000"
+  selection: "on #e6e2cc"
+
+syntax:
+  json_key: "bold #5c6a72"
+  json_string: "#8da101"
+  json_number: "#3a94c5"
+  json_boolean: "#dfa000"
+  json_null: "italic #829181"
+
+url:
+  base: "#829181"
+  protocol: "bold #3a94c5"
+  separator: "#939f91"
+
+variable:
+  resolved: "#8da101"
+  unresolved: "#f85552"
+
+method:
+  get: "#3a94c5"
+  post: "#8da101"
+  put: "#dfa000"
+  delete: "#f85552"
+  patch: "#35a77c"
+  options: "#df69ba"
+  head: "#829181"

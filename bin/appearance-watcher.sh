@@ -34,6 +34,7 @@ STARSHIP_CONF="$HOME/.config/starship.toml"
 STARSHIP_DIR="$HOME/.config/starship"
 HUNK_CONF="$HOME/.config/hunk/config.toml"
 GH_DASH_CONF="$HOME/.config/gh-dash/config.yml"
+POSTING_CONF="$HOME/.config/posting/config.yaml"
 
 mkdir -p "$(dirname "$STATE_FILE")"
 
@@ -83,6 +84,12 @@ react() {
   # matches, instead of swapping file contents like btop/starship do.
   if [ -f "$GH_DASH_CONF" ]; then
     sed -i '' -E "s#themes/everforest-(dark|light)\.yml#themes/everforest-${mode}.yml#" "$GH_DASH_CONF"
+  fi
+
+  # Posting: its custom theme selection is passive config with no live-reload
+  # hook, so keep the selected Everforest variant ready for the next launch.
+  if [ -f "$POSTING_CONF" ]; then
+    sed -i '' -E "s/^theme: everforest-(dark|light)$/theme: everforest-${mode}/" "$POSTING_CONF"
   fi
 }
 

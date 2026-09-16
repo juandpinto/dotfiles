@@ -1,0 +1,3 @@
+# Posting UI theme. The custom Everforest themes are managed under
+# ~/.local/share/posting/themes, Posting's XDG data directory.
+theme: everforest-dark
