@@ -24,6 +24,9 @@
 #--map-syntax "*.ino:C++"
 #--map-syntax ".ignore:Git Ignore"
 
+# Read macOS's appearance directly instead of relying on the terminal's
+# background-color query (which can be stale or unavailable through tmux).
+--theme="auto:system"
 --theme-dark="everforest-dark"
 --theme-light="everforest-light"
 
