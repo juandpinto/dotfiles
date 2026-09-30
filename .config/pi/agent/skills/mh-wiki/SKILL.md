@@ -1,6 +1,6 @@
 ---
 name: mh-wiki
-description: Personal DS knowledge base wiki operations for McGraw Hill projects. Use ONLY when user says "ingest", "update the wiki", "promote", "query the wiki", "semantic lint", or "file this into the wiki".
+description: Personal DS knowledge base wiki operations for McGraw Hill projects. Use when the user explicitly requests ingest, update, promotion, query, semantic lint, or filing work, or continues an already-approved wiki operation.
 ---
 
 # MH wiki — operations
@@ -17,6 +17,7 @@ This wiki is a personal, LLM-maintained knowledge base covering multiple active 
 - `projects/` — one subfolder per project area (insights-lab, ai-reader-analysis, sharpen-radar, lomap-locam, mhplus-proficiency)
 - `org/` — organizational context (org chart, glossary, project links, roles)
 - `analyses/` — filed analysis outputs and validated methodologies
+- `meta/` — maintenance plans and contributor-facing operational references kept outside ordinary domain retrieval
 
 ## Conventions
 
@@ -25,8 +26,34 @@ This wiki is a personal, LLM-maintained knowledge base covering multiple active 
 - Every wiki page has YAML frontmatter with at least `tags:` (comma-separated, lowercase, hyphenated)
 - Every new or updated page gets its entry updated in `index.md`
 - Every wiki operation appends a line to `log.md`
+- `log.md` is append-only; do not rewrite or autoformat historical entries
+- Use the repository's existing asterisk-emphasis Markdownlint policy for content pages
+
+## Source lifecycle and durable links
+
+- Treat project repositories, worktrees, generated outputs, ignored files, and branch-only documents as read-only source material.
+- Before a worktree is cleaned up, inventory both untracked and ignored Markdown files—not only ordinary `git status` output.
+- Promote validated durable findings into the wiki before relying on a branch, ignored file, or local path for future retrieval.
+- Prefer verified default-branch links for actively maintained documentation. A branch URL is temporary provenance, not a preservation strategy.
+- Do not add local filesystem links that leave the wiki. Replace them with self-contained synthesis or a verified stable repository link.
+- Keep raw learner data, credentials, signed URLs, private keys, and one-off run artifacts out of the wiki.
+
+## Formatting and validation
+
+For Markdown content pages, use the local editor's formatter order:
+
+```bash
+prettier --prose-wrap preserve --parser markdown --write <markdown-files>
+markdownlint --config .markdownlint.json --fix <markdown-files>
+```
+
+Run Prettier first for table alignment, then Markdownlint for the repository's asterisk-emphasis and list rules. Validate the complete two-step chain rather than expecting a standalone final Prettier check to pass. Exclude `log.md` from formatter rewrites because it is append-only; treat `meta/mh-wiki-plan.md` as historical context rather than ordinary content.
+
+After changes, verify wikilinks, external Markdown links, frontmatter, source paths, sensitive patterns, and `git diff --check`. Review the diff for semantic changes introduced by formatting.
 
 ## Named operations
+
+These operations also apply when the user continues an already-approved wiki operation without repeating the trigger phrase.
 
 ### Ingest
 
