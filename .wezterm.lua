@@ -53,6 +53,10 @@ config.macos_window_background_blur = 10
 -- images inline (e.g. in markdown files). See ~/.config/nvim/lua/plugins/image.lua.
 config.enable_kitty_graphics = true
 
+-- Preserve modified-key combinations such as Ctrl+Shift+Up/Down for Pi and
+-- other TUI applications instead of relying on legacy terminal encoding.
+config.enable_kitty_keyboard = true
+
 -- Keymaps
 -- config.leader = { key = "b", mods = "CTRL", timeout_milliseconds = 2000 }
 --
