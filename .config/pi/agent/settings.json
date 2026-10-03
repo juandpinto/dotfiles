@@ -1,10 +1,11 @@
 {
-  "lastChangelogVersion": "0.87.1",
+  "lastChangelogVersion": "1.0.0",
   "theme": "everforest-dark",
   "defaultProvider": "github-copilot",
   "defaultModel": "gpt-5.6-luna",
   "defaultThinkingLevel": "xhigh",
   "showHardwareCursor": true,
+  "fullscreenWheelScrollLines": 5,
   "editorPaddingX": 2,
   "outputPad": 1,
   "treeFilterMode": "default",
