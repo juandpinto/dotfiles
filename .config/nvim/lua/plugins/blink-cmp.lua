@@ -66,7 +66,13 @@ require('blink.cmp').setup({
         -- intentionally excluded: it's rarely helpful and, since it's also
         -- the default fallback for 'lsp'/'path', it was showing up as noisy
         -- irrelevant one-word suggestions whenever those returned nothing.
-        default = { 'lsp', 'path', 'snippets' },
+        default = { 'lsp', 'path', 'snippets', 'mkdnflow' },
+        providers = {
+            mkdnflow = {
+                name = 'Mkdnflow',
+                module = 'mkdnflow.completion.blink',
+            },
+        },
     },
 
     snippets = { preset = 'luasnip' },

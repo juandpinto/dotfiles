@@ -14,7 +14,6 @@ require('which-key').setup({
         { '<leader>a', group = '[A]I CLI (sidekick)', mode = { 'n', 'v' } },
         { '<leader>r', group = '[R]EPL' }, -- vim-slime
         { '<leader>p', group = 'RE[P]L Send', mode = { 'n', 'v' } }, -- vim-slime
-        { '<leader>c', group = 'List [C]ycle' }, -- autolist
         { '<leader>m', group = '[M]arkdown preview' }, -- render-markdown.nvim, glow
         { 's', group = '[S]urround' }, -- mini.surround
         { 'gr', group = 'LSP Actions', mode = { 'n' } },

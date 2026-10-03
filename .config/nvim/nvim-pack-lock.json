@@ -5,10 +5,6 @@
       "src": "https://github.com/L3MON4D3/LuaSnip",
       "version": "2.0.0 - 3.0.0"
     },
-    "autolist.nvim": {
-      "rev": "339499695d3be8c44aefef1d2516464758957004",
-      "src": "https://github.com/gaoDean/autolist.nvim"
-    },
     "beancount.nvim": {
       "rev": "5a45ae7f1e704c413599416842d2fd821f0b9bc1",
       "src": "https://github.com/hxueh/beancount.nvim"
@@ -89,6 +85,10 @@
     "mini.nvim": {
       "rev": "a59a9b7fb0a42cbcf022938ee5f0724320b66f63",
       "src": "https://github.com/nvim-mini/mini.nvim"
+    },
+    "mkdnflow.nvim": {
+      "rev": "272148c4bd1996380b9b540540758d57667e59c4",
+      "src": "https://github.com/jakewvincent/mkdnflow.nvim"
     },
     "molten-nvim": {
       "rev": "c1db39e78fe18559d8f2204bf5c4d476bdc80d3e",

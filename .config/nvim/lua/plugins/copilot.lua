@@ -5,7 +5,7 @@ require('copilot').setup({
         enabled = true,
         auto_trigger = true, -- ghost text as you type, matching previous copilot.vim behavior
         keymap = {
-            -- <Tab> collides with autolist.nvim's list-indent mapping, so accept
+            -- <Tab> is reserved for Markdown list/table navigation, so accept
             -- suggestions with <C-l> instead (same key as before the switch).
             accept = '<C-l>',
             accept_word = '<C-Right>', -- partial accept, one word at a time
