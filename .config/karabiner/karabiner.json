@@ -352,7 +352,7 @@
                                     "modifiers": { "optional": ["any"] },
                                     "simultaneous": [
                                         { "key_code": "spacebar" },
-                                        { "key_code": "h" }
+                                        { "key_code": "g" }
                                     ],
                                     "simultaneous_options": {
                                         "key_down_order": "strict",
