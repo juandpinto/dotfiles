@@ -3,7 +3,7 @@
 
 aerc's built-in archive/move commands use one static destination per account, but a unified notmuch account has no per-message awareness of whether a message belongs to iCloud or Gmail. This helper receives selected raw message(s), resolves every Message-ID to its actual Maildir file(s) through notmuch, and moves each file to that real account's Archive or Trash folder.
 
-Every successful local rename is durably journaled as one grouped user action before the move can complete. The ``undo`` mode reverses only the newest journaled action and refuses ambiguity, changed content, or a destination conflict rather than guessing or overwriting mail. After either direction, the helper runs the shared lock-guarded notmuch reindex and starts a targeted mbsync push. The locally patched aerc build observes the resulting Xapian change through its fixed macOS FSEvents watcher, so this script deliberately does not force an IPC `:cf` refresh.
+Every successful local rename is durably journaled as one grouped user action before the move can complete. The ``undo`` mode reverses only the newest journaled action and refuses ambiguity, changed content, or a destination conflict rather than guessing or overwriting mail. After either direction, the helper runs the shared lock-guarded notmuch reindex and starts a targeted mbsync push. aerc's notmuch worker watches the Xapian database directory (inotify on Linux; on macOS only the locally patched FSEvents build sees the change), so this script deliberately does not force an IPC `:cf` refresh.
 """
 
 import email
@@ -24,8 +24,17 @@ from aerc_unified_journal import (
 )
 
 MAILDIR = Path.home() / "mail"
-LOG_PATH = Path.home() / "Library/Logs/notmuch-unified-file.log"
-SASL_PATH = "/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
+# macOS keeps its historical log location; Linux follows XDG state.
+if sys.platform == "darwin":
+    LOG_PATH = Path.home() / "Library/Logs/notmuch-unified-file.log"
+    # Homebrew's cyrus-sasl plugins; see the matching comment in `mailsync`.
+    SASL_PATH: str | None = "/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
+else:
+    LOG_PATH = (
+        Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
+        / "mail/notmuch-unified-file.log"
+    )
+    SASL_PATH = None
 NOTMUCH_NEW_LOCKED = str(Path.home() / ".local/bin/notmuch-new-locked")
 UNDO_STATE_DIR = Path.home() / ".local/state/aerc/unified-move-undo"
 
@@ -510,7 +519,8 @@ def sync_account(account: str) -> None:
     (see aerc.conf's [hooks] section) and for the same reason.
     """
     env = os.environ.copy()
-    env["SASL_PATH"] = SASL_PATH
+    if SASL_PATH:
+        env["SASL_PATH"] = SASL_PATH
     channel = "icloud" if account == "icloud" else account
     log(f"sync for {channel} handed off to a detached background process")
     with LOG_PATH.open("a") as log_file:
@@ -545,8 +555,9 @@ def reindex_and_sync(touched_accounts: set[str]) -> None:
         if result.returncode != 0:
             log(f"notmuch-new-locked failed again: {result.stderr.strip()}")
 
-    # The local aerc build observes this Xapian update through FSEvents and
-    # refreshes in place. Do not reintroduce the old scratch-query round trip.
+    # aerc's notmuch worker observes this Xapian update through its filesystem
+    # watcher and refreshes in place. Do not reintroduce the old scratch-query
+    # round trip.
     for account in touched_accounts:
         sync_account(account)
 
@@ -565,8 +576,7 @@ def main() -> int:
         if undo_error:
             log(f"undo: partially completed: {undo_error}")
             print(
-                "undo partially completed -- see "
-                "~/Library/Logs/notmuch-unified-file.log",
+                f"undo partially completed -- see {LOG_PATH}",
                 file=sys.stderr,
             )
             return 1
@@ -610,10 +620,7 @@ def main() -> int:
 
     if not resolved:
         log(f"{mode}: could not resolve any of {len(message_ids)} message(s)")
-        print(
-            "nothing done -- see ~/Library/Logs/notmuch-unified-file.log",
-            file=sys.stderr,
-        )
+        print(f"nothing done -- see {LOG_PATH}", file=sys.stderr)
         return 1
     if not touched_accounts:
         log(f"{mode}: all {len(message_ids)} message(s) already correctly filed")

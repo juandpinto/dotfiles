@@ -1,0 +1,15 @@
+[Unit]
+Description=Sync mail every 3 minutes
+Documentation=file:%h/.dotfiles/platforms/omarchy/mail.md
+
+[Timer]
+# First run shortly after the user session comes up (gnome-keyring, which
+# supplies the passwords, is unlocked by PAM at login), then 3 minutes after
+# each run finishes -- interval measured from completion, so a slow sync
+# never stacks up behind itself.
+OnStartupSec=1min
+OnUnitInactiveSec=3min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

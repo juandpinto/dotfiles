@@ -7,3 +7,9 @@
 .config/pi/agent/git/
 __pycache__/
 .ruff_cache/
+# Mail account configs carry email addresses/logins; they live in the private
+# companion repo (~/.dotfiles-private), never here. See platforms/omarchy/mail.md.
+platforms/omarchy/home/.config/aerc/accounts.conf
+platforms/omarchy/home/.config/isyncrc
+platforms/omarchy/home/.config/msmtp/
+platforms/omarchy/home/.config/notmuch/

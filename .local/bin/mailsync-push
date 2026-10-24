@@ -6,7 +6,10 @@
 # aerc sets $AERC_ACCOUNT and $AERC_FOLDER when invoking this.
 set -e
 
-export SASL_PATH="/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
+# macOS only -- see the matching comment in `mailsync`.
+if [ -d /opt/homebrew/opt/cyrus-sasl/lib/sasl2 ]; then
+	export SASL_PATH="/opt/homebrew/opt/cyrus-sasl/lib/sasl2"
+fi
 
 if [ "$AERC_ACCOUNT" = "icloud" ]; then
 	# Single wildcard channel named "icloud" covers every folder directly,

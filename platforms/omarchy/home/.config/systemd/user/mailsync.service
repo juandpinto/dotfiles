@@ -1,0 +1,15 @@
+[Unit]
+Description=Sync mail with mbsync and reindex with notmuch
+Documentation=file:%h/.dotfiles/platforms/omarchy/mail.md
+# Started by mailsync.timer every 3 minutes, by aerc's startup hook, and by
+# Ctrl+r inside aerc (check-mail-cmd). systemd never runs two instances of a
+# oneshot at once: a start request while it is active simply joins the job.
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/mailsync
+# A routine run takes seconds; a stuck IMAP connection should not hold the
+# timer forever. (Run the initial multi-hour backfill by hand, not here.)
+TimeoutStartSec=20min
+UMask=0077
+NoNewPrivileges=yes
