@@ -1,0 +1,169 @@
+--- a/Bar.qml
++++ b/Bar.qml
+@@ -12,15 +12,16 @@
+ Item {
+   id: root
+ 
+-  // The omarchy-shell host injects omarchyPath from OMARCHY_PATH.
+-  required property string omarchyPath
++  // The omarchy-shell host injects omarchyPath from OMARCHY_PATH after the
++  // Loader resolves; plugin bars load by URL, so these cannot be `required`.
++  property string omarchyPath: ""
+   // Injected by the host shell so bar slots can resolve enabled widgets.
+-  required property var barWidgetRegistry
++  property var barWidgetRegistry: null
+   // Injected by the host shell every time shell.json is reloaded. Holds the
+   // `bar:` subtree: position, centerAnchor, layout. The host owns file IO;
+   // the bar just renders whatever it's handed. The bar font follows the
+   // OS-level fontconfig monospace binding — it is not stored in shell.json.
+-  required property var barConfig
++  property var barConfig: ({})
+   // Injected by the host shell. Used for shell-wide actions such as opening
+   // settings and persisting inline widget state.
+   property var shell: null
+@@ -330,6 +331,24 @@
+   readonly property bool vertical: position === "left" || position === "right"
+   readonly property int barSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
+ 
++  // ---- Island bar: the whole bar is one floating island. Its geometry comes
++  //      live from ~/.config/omarchy/shell.toml's [island-bar] section, in
++  //      logical pixels; missing or invalid values fall back to these defaults.
++  function islandSetting(key, fallback) {
++    var raw = Commons.Color.shellValues["island-bar." + key]
++    var value = Number(raw)
++    return raw === undefined || raw === "" || !isFinite(value) || value < 0 ? fallback : value
++  }
++  // From the screen edge the bar is attached to (the top, for a top bar).
++  readonly property int islandEdgeGap: Math.round(islandSetting("edge-gap", 4))
++  // From the two screen edges beside it (left and right, for a top bar).
++  readonly property int islandSideGap: Math.round(islandSetting("side-gap", 8))
++  readonly property real islandRadius: islandSetting("radius", 10)
++  // Between the island's ends and the first and last widgets.
++  readonly property int islandPadding: Style.space(5)
++  // The space the bar takes from the screen edge: the gap plus the island.
++  readonly property int barThickness: barSize + islandEdgeGap
++
+   // Whether this machine is an Apple Silicon laptop, whose built-in panel may
+   // have a camera notch. Machine identity is fixed, so probe once at startup;
+   // the device-tree file does not exist on x86, which reads as "no" there.
+@@ -1029,10 +1048,10 @@
+     }
+ 
+     margins {
+-      top: root.barHidden && root.position === "top" ? -root.barSize : 0
+-      bottom: root.barHidden && root.position === "bottom" ? -root.barSize : 0
+-      left: root.barHidden && root.position === "left" ? -root.barSize : 0
+-      right: root.barHidden && root.position === "right" ? -root.barSize : 0
++      top: root.barHidden && root.position === "top" ? -root.barThickness : 0
++      bottom: root.barHidden && root.position === "bottom" ? -root.barThickness : 0
++      left: root.barHidden && root.position === "left" ? -root.barThickness : 0
++      right: root.barHidden && root.position === "right" ? -root.barThickness : 0
+     }
+ 
+     anchors {
+@@ -1053,15 +1072,21 @@
+           : BarModel.notchHeight(screen.name, screen.width, screen.height, screen.devicePixelRatio))
+       : 0
+ 
+-    implicitWidth: root.vertical ? root.barSize : 0
+-    implicitHeight: root.vertical ? 0 : Math.max(root.barSize, notchFloor)
+-    color: root.transparent ? "transparent" : root.background
++    implicitWidth: root.vertical ? root.barThickness : 0
++    implicitHeight: root.vertical ? 0 : Math.max(root.barSize, notchFloor) + root.islandEdgeGap
++    // The surface is clear; the island inside it carries the bar background.
++    color: "transparent"
+     surfaceFormat.opaque: false
+     WlrLayershell.namespace: "omarchy-bar"
+     WlrLayershell.layer: WlrLayer.Top
+ 
+     Loader {
+       anchors.fill: parent
++      // The island's gap to the screen edge lies outside the bar's content.
++      anchors.topMargin: root.position === "top" ? root.islandEdgeGap : 0
++      anchors.bottomMargin: root.position === "bottom" ? root.islandEdgeGap : 0
++      anchors.leftMargin: root.position === "left" ? root.islandEdgeGap : 0
++      anchors.rightMargin: root.position === "right" ? root.islandEdgeGap : 0
+       sourceComponent: root.vertical ? verticalBar : horizontalBar
+ 
+       // A child of the loader, not a sibling of the sections: an ancestor stays
+@@ -1145,17 +1170,23 @@
+       Item {
+         anchors.fill: parent
+ 
++        IslandBackdrop {
++          anchors.fill: parent
++          anchors.leftMargin: root.islandSideGap
++          anchors.rightMargin: root.islandSideGap
++        }
++
+         CenterModules { anchors.fill: parent }
+ 
+         LeftModules {
+           anchors.left: parent.left
+-          anchors.leftMargin: Style.space(8)
++          anchors.leftMargin: root.islandSideGap + root.islandPadding
+           anchors.verticalCenter: parent.verticalCenter
+         }
+ 
+         RightModules {
+           anchors.right: parent.right
+-          anchors.rightMargin: Style.space(8)
++          anchors.rightMargin: root.islandSideGap + root.islandPadding
+           anchors.verticalCenter: parent.verticalCenter
+         }
+       }
+@@ -1167,17 +1198,23 @@
+       Item {
+         anchors.fill: parent
+ 
++        IslandBackdrop {
++          anchors.fill: parent
++          anchors.topMargin: root.islandSideGap
++          anchors.bottomMargin: root.islandSideGap
++        }
++
+         CenterModules { anchors.fill: parent }
+ 
+         LeftModules {
+           anchors.top: parent.top
+-          anchors.topMargin: Style.space(8)
++          anchors.topMargin: root.islandSideGap + root.islandPadding
+           anchors.horizontalCenter: parent.horizontalCenter
+         }
+ 
+         RightModules {
+           anchors.bottom: parent.bottom
+-          anchors.bottomMargin: Style.space(8)
++          anchors.bottomMargin: root.islandSideGap + root.islandPadding
+           anchors.horizontalCenter: parent.horizontalCenter
+         }
+       }
+@@ -1313,6 +1350,17 @@
+     return idx === -1 ? null : entries[idx]
+   }
+ 
++  // The island: the themed bar background (shell.toml background-alpha
++  // applies) with a faint accent border. Hidden while the bar is transparent,
++  // as the stock bar drops its background then.
++  component IslandBackdrop: Rectangle {
++    visible: !root.transparent
++    radius: Math.min(root.islandRadius, width / 2, height / 2)
++    color: root.background
++    border.width: 1
++    border.color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.25)
++  }
++
+   component LeftModules: ModuleList {
+     entries: root.layoutEntries("left")
+     region: "left"
+@@ -1574,8 +1622,8 @@
+     // plugin enabled/disabled, etc.). Reading the `widgets` property creates
+     // the binding dependency — the wrapped function call alone wouldn't.
+     readonly property var registryComponent: {
+-      var w = root.barWidgetRegistry.widgets
+-      if (customType) return null
++      var w = root.barWidgetRegistry ? root.barWidgetRegistry.widgets : null
++      if (customType || !w) return null
+       var registryName = root.canonicalWidgetId(moduleName)
+       return w[registryName] ? w[registryName].component : null
+     }

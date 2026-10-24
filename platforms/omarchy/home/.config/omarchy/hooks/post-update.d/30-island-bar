@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# After an Omarchy update, rebuild the derived island bar from the new engine.
+# Only when the plugin is installed; the shell hot-reloads plugin code on save.
+set -euo pipefail
+plugin="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/jdpinto.island-bar"
+[[ -d $plugin ]] || exit 0
+command -v build-island-bar >/dev/null || exit 0
+build-island-bar

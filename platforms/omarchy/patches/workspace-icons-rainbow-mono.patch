@@ -1,0 +1,257 @@
+diff --git i/AppIconButton.qml w/AppIconButton.qml
+index 55c94d3..98554a0 100644
+--- i/AppIconButton.qml
++++ w/AppIconButton.qml
+@@ -28,7 +28,11 @@ WidgetButton {
+   property color badgeInk: colored ? glyphColor : tint
+ 
+   readonly property bool isGlyph: String(group.source || "").indexOf("glyph:") === 0
+-  readonly property bool imageFailed: !isGlyph && (String(group.source || "") === "" || image.status === Image.Error)
++  // A single-color image ("mono:" source, black on transparent): drawn in
++  // the tint color like a glyph, in full color mode too.
++  readonly property bool isMono: String(group.source || "").indexOf("mono:") === 0
++  readonly property string imageSource: isGlyph ? "" : (isMono ? String(group.source).substring(5) : String(group.source || ""))
++  readonly property bool imageFailed: !isGlyph && (imageSource === "" || image.status === Image.Error)
+   readonly property bool tinted: !colored
+   readonly property bool tintIsLight: 0.2126 * tint.r + 0.7152 * tint.g + 0.0722 * tint.b > 0.45
+ 
+@@ -71,7 +75,7 @@ WidgetButton {
+       asynchronous: true
+       sourceSize.width: Math.round(root.iconSize * Screen.devicePixelRatio)
+       sourceSize.height: Math.round(root.iconSize * Screen.devicePixelRatio)
+-      source: root.isGlyph ? "" : (root.group.source || "")
++      source: root.imageSource
+       smooth: true
+       // The effect stays on and only its strength changes: switching
+       // `layer.enabled` on and off can leave an icon blank until it is
+@@ -84,9 +88,11 @@ WidgetButton {
+       layer.effect: MultiEffect {
+         // Lifted (or, for a dark tint, lowered) so tinted icons come out
+         // close to the tint color. Tinted with a theme color, so they follow theme changes.
+-        brightness: root.tinted ? (root.tintIsLight ? 0.6 : -0.4) : 0
+-        colorization: root.tinted ? 1.0 : 0
+-        colorizationColor: root.tint
++        // Colorization multiplies the color by the lifted luminance, so a
++        // black mono image lifted by 1 comes out exactly in its color.
++        brightness: root.isMono ? 1 : (root.tinted ? (root.tintIsLight ? 0.6 : -0.4) : 0)
++        colorization: root.tinted || root.isMono ? 1.0 : 0
++        colorizationColor: root.isMono && !root.tinted ? root.glyphColor : root.tint
+         saturation: root.grayscale && !root.tinted ? -1 : 0
+       }
+     }
+diff --git i/WorkspaceButton.qml w/WorkspaceButton.qml
+index 92deee1..68e3d1d 100644
+--- i/WorkspaceButton.qml
++++ w/WorkspaceButton.qml
+@@ -62,11 +62,13 @@ WidgetButton {
+   //      a stronger one for the workspace you're on.
+   readonly property bool tiles: panel.tilesStyle
+   readonly property bool tileShown: tiles && (occupied || focused || shownHere || urgent || specialOpen || hovered)
+-  readonly property bool tileSolid: tiles && focused && panel.activeTile !== "subtle"
+-  readonly property color tileFill: focused ? panel.activeTileFill()
++  readonly property bool tileSolid: tiles && focused && (panel.activeTile !== "subtle" || panel.rainbow)
++  readonly property color tileFill: focused ? (panel.rainbow ? wsColor : panel.activeTileFill())
+     : Qt.rgba(panel.symbolColor.r, panel.symbolColor.g, panel.symbolColor.b, hovered ? 0.12 : (occupied || specialOpen ? 0.07 : 0))
+   // Text and tinted icons on a solid or accent tile take a color that reads on it.
+-  readonly property color tileInk: panel.contrastOn(panel.activeTileFill())
++  readonly property color tileInk: panel.contrastOn(panel.rainbow ? wsColor : panel.activeTileFill())
++  // This workspace's tint: the panel's, or its own color with the rainbow on.
++  readonly property color wsColor: panel.workspaceColor(key)
+ 
+   // ---- Dots style: every workspace a dot, the focused one (or an open
+   //      special workspace) a pill carrying its icons and/or number.
+@@ -81,8 +83,8 @@ WidgetButton {
+   // pill keeps its shape so the focused workspace still shows.
+   readonly property bool pillFramed: panel.pillFrame || !pillHasContent
+   readonly property bool pillSolid: pillFramed && (!colorIcons || !pillIcons)
+-  readonly property color pillInk: pillSolid ? panel.contrastOn(panel.tintColor)
+-    : (pillFramed || panel.coloredIcons ? panel.symbolColor : panel.tintColor)
++  readonly property color pillInk: pillSolid ? panel.contrastOn(wsColor)
++    : (pillFramed || panel.coloredIcons ? panel.symbolColor : wsColor)
+   readonly property real dotSize: Style.spaceReal(8)
+   // An empty pill stays as thin as the dots.
+   readonly property real pillThickness: !pillHasContent ? dotSize
+@@ -162,7 +164,7 @@ WidgetButton {
+     radius: Style.cornerRadius > 0 ? Math.min(height / 2, Style.space(8)) : 0
+     color: button.tileFill
+     border.width: button.shownHere ? Math.max(1, Style.space(1.5)) : 0
+-    border.color: panel.tintColor
++    border.color: button.wsColor
+ 
+     Behavior on color {
+       enabled: panel.animations
+@@ -191,7 +193,7 @@ WidgetButton {
+       textFormat: Text.PlainText
+       text: button.label
+       color: button.tileSolid ? button.tileInk
+-        : (button.urgent && !button.tiles ? panel.urgentColor : (panel.coloredIcons ? button.foreground : panel.tintColor))
++        : (button.urgent && !button.tiles ? panel.urgentColor : (panel.coloredIcons && !panel.rainbow ? button.foreground : button.wsColor))
+       opacity: button.shownHere && button.label === "󱓻" ? 0.55 : 1
+       font.family: button.fontFamily
+       font.pixelSize: button.fontSize
+@@ -223,7 +225,7 @@ WidgetButton {
+       visible: button.overflow > 0
+       textFormat: Text.PlainText
+       text: "+" + button.overflow
+-      color: panel.coloredIcons ? button.foreground : panel.tintColor
++      color: panel.coloredIcons && !panel.rainbow ? button.foreground : button.wsColor
+       opacity: 0.8
+       font.family: button.fontFamily
+       font.pixelSize: Math.round(button.fontSize * 0.8)
+@@ -243,11 +245,11 @@ WidgetButton {
+     // The workspace another monitor shows is a ring; others are filled,
+     // dimmer when empty.
+     color: button.pill ? (!button.pillFramed ? "transparent"
+-        : (button.pillSolid ? panel.tintColor : Qt.rgba(panel.tintColor.r, panel.tintColor.g, panel.tintColor.b, 0.22)))
+-      : (button.shownHere ? "transparent" : (button.urgent ? panel.urgentColor : panel.symbolColor))
++        : (button.pillSolid ? button.wsColor : Qt.rgba(button.wsColor.r, button.wsColor.g, button.wsColor.b, 0.22)))
++      : (button.shownHere ? "transparent" : (button.urgent ? panel.urgentColor : (panel.rainbow ? button.wsColor : panel.symbolColor)))
+     opacity: button.pill || button.shownHere || button.urgent ? 1 : (button.occupied ? 0.8 : 0.35)
+     border.width: (button.shownHere && !button.pill) || (button.pill && button.pillFramed && !button.pillSolid) ? Math.max(1, Style.space(1.5)) : 0
+-    border.color: panel.tintColor
++    border.color: button.wsColor
+ 
+     Behavior on width {
+       enabled: panel.animationsReady
+@@ -330,13 +332,13 @@ WidgetButton {
+     grayscale: button.grayIcons
+     iconSize: button.panel.iconSize
+     // On the pill, tinted icons and glyphs take a color that reads on it.
+-    tint: button.pill && button.pillSolid ? button.pillInk : (button.tileSolid ? button.tileInk : button.panel.tintColor)
++    tint: button.pill && button.pillSolid ? button.pillInk : (button.tileSolid ? button.tileInk : button.wsColor)
+     glyphColor: button.pill && button.pillFramed ? button.pillInk : (button.tileSolid ? button.tileInk : button.panel.symbolColor)
+     // In the tiles style the focused window's app gets its own highlight.
+     highlighted: button.tiles && button.focused && group.focused === true && button.groups.length > 1
+     highlightColor: button.tileSolid ? button.tileInk : button.panel.symbolColor
+     badgeFill: button.pill && button.pillSolid ? button.pillInk : button.panel.barBackground
+-    badgeInk: button.pill && button.pillSolid ? button.panel.tintColor : (colored ? glyphColor : tint)
++    badgeInk: button.pill && button.pillSolid ? button.wsColor : (colored ? glyphColor : tint)
+     onTooltipHoveredChanged: button.hoveredIcons = Math.max(0, button.hoveredIcons + (tooltipHovered ? 1 : -1))
+     Component.onDestruction: if (tooltipHovered) button.hoveredIcons = Math.max(0, button.hoveredIcons - 1)
+   }
+diff --git i/WorkspacePreview.qml w/WorkspacePreview.qml
+index 95c39ff..71d45a7 100644
+--- i/WorkspacePreview.qml
++++ w/WorkspacePreview.qml
+@@ -186,7 +186,7 @@ Item {
+         Image {
+           anchors.fill: parent
+           visible: String(frame.modelData.icon).indexOf("glyph:") !== 0
+-          source: visible ? frame.modelData.icon : ""
++          source: visible ? String(frame.modelData.icon).replace(/^mono:/, "") : ""
+           fillMode: Image.PreserveAspectFit
+           sourceSize.width: Math.round(width * Screen.devicePixelRatio)
+           sourceSize.height: Math.round(height * Screen.devicePixelRatio)
+@@ -221,7 +221,7 @@ Item {
+           width: root.panel.iconSize
+           height: width
+           visible: String(frame.modelData.icon).indexOf("glyph:") !== 0
+-          source: visible ? frame.modelData.icon : ""
++          source: visible ? String(frame.modelData.icon).replace(/^mono:/, "") : ""
+           fillMode: Image.PreserveAspectFit
+           sourceSize.width: Math.round(width * Screen.devicePixelRatio)
+           sourceSize.height: Math.round(height * Screen.devicePixelRatio)
+diff --git i/Workspaces.qml w/Workspaces.qml
+index 2d3c46b..9be64dc 100644
+--- i/Workspaces.qml
++++ w/Workspaces.qml
+@@ -114,6 +114,45 @@ Panel {
+     if (root.activeTile === "accent") return Commons.Color.accent
+     return Qt.rgba(root.symbolColor.r, root.symbolColor.g, root.symbolColor.b, 0.2)
+   }
++  // Rainbow: each numbered workspace takes its own color from the theme's
++  // palette (red, orange, yellow, green, cyan, blue, then magenta) for its
++  // number, tinted icons and the tile when it's focused.
++  readonly property bool rainbow: boolOption("rainbowWorkspaces", false)
++  readonly property var rainbowOrder: ["red", "orange", "yellow", "green", "cyan", "blue", "magenta"]
++  property var themePalette: ({})
++
++  function workspaceColor(key) {
++    var number = Number(key)
++    if (!root.rainbow || !(number > 0)) return root.tintColor
++    var value = root.themePalette[root.rainbowOrder[Math.min(number, root.rainbowOrder.length) - 1]]
++    return value ? value : root.tintColor
++  }
++
++  function loadThemePalette(raw) {
++    var palette = {}
++    var lines = String(raw || "").split("\n")
++    for (var i = 0; i < lines.length; i++) {
++      var match = lines[i].match(/^\s*([A-Za-z0-9_-]+)\s*=\s*["']?(#[0-9A-Fa-f]{6})/)
++      if (match) palette[match[1]] = match[2]
++    }
++    root.themePalette = palette
++  }
++
++  // The shell only keeps a few palette roles; the named colors come from the
++  // theme file, re-read when the shell's own colors change on a theme switch.
++  FileView {
++    id: paletteFile
++    path: Commons.Color.currentThemePath + "/colors.toml"
++    watchChanges: false
++    printErrors: false
++    onLoaded: root.loadThemePalette(text())
++  }
++  Connections {
++    target: Commons.Color
++    function onForegroundChanged() { paletteFile.reload() }
++    function onBackgroundChanged() { paletteFile.reload() }
++    function onAccentChanged() { paletteFile.reload() }
++  }
+   readonly property string pillContent: ["icons", "number", "both", "none"].indexOf(String(option("pillContent", "icons"))) !== -1
+     ? String(option("pillContent", "icons")) : "icons"
+   // The filled or outlined shape around the pill's icons and number.
+@@ -804,6 +843,8 @@ Panel {
+   // An icon name or, for overrides and desktop entries, an absolute path.
+   function themedIcon(name) {
+     if (!name) return ""
++    // "mono:" marks a single-color image, drawn in the tint color.
++    if (name.indexOf("mono:") === 0) return "mono:" + themedIcon(name.substring(5))
+     if (name.charAt(0) === "/") return "file://" + name
+     return Quickshell.iconPath(name, true)
+   }
+@@ -1025,12 +1066,14 @@ Panel {
+   }
+ 
+   function iconFor(info) {
+-    var override = root.iconOverrides[info.appId]
+-    if (override) return root.themedIcon(String(override))
++    // The program in a terminal wins over an override for the terminal's
++    // own class, so that override only covers plain shells.
+     if (root.showTerminalPrograms && root.isTerminal(info)) {
+       var program = root.programIcon(root.terminalPrograms[String(info.pid)])
+       if (program) return program
+     }
++    var override = root.iconOverrides[info.appId]
++    if (override) return root.themedIcon(String(override))
+     return root.appIcon(info)
+   }
+ 
+diff --git i/manifest.json w/manifest.json
+index b082887..5299a96 100644
+--- i/manifest.json
++++ w/manifest.json
+@@ -49,7 +49,8 @@
+       "barStyle": "classic",
+       "pillContent": "icons",
+       "pillFrame": true,
+-      "activeTile": "subtle"
++      "activeTile": "subtle",
++      "rainbowWorkspaces": false
+     },
+     "schema": [
+       {
+@@ -271,6 +272,13 @@
+         "label": "Highlight urgent windows",
+         "defaultValue": true,
+         "description": "Pulse workspaces whose apps want attention, with a dot on the app."
++      },
++      {
++        "key": "rainbowWorkspaces",
++        "type": "boolean",
++        "label": "Rainbow workspaces",
++        "defaultValue": false,
++        "description": "Each numbered workspace in its own theme color (red, orange, yellow, green, cyan, blue, then magenta) for its number, tinted icons and focused tile."
+       }
+     ]
+   },

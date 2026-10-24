@@ -1,0 +1,93 @@
+diff --git i/WorkspacePreview.qml w/WorkspacePreview.qml
+index a62a472..95c39ff 100644
+--- i/WorkspacePreview.qml
++++ w/WorkspacePreview.qml
+@@ -3,6 +3,7 @@ import Quickshell
+ import Quickshell.Wayland
+ import Quickshell.Widgets
+ import qs.Commons
++import qs.Commons as Commons
+ import qs.Ui
+ 
+ // The hover preview: a miniature of the workspace's monitor over its
+@@ -151,9 +152,9 @@ Item {
+       width: modelData.width
+       height: modelData.height
+       radius: Style.cornerRadius > 0 ? Math.max(2, Style.space(3)) : 0
+-      color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.1)
++      color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.1)
+       border.width: highlighted ? Math.max(2, Style.space(2)) : 1
+-      border.color: highlighted ? Color.accent : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.35)
++      border.color: highlighted ? Commons.Color.accent : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.35)
+ 
+       ScreencopyView {
+         id: capture
+@@ -213,7 +214,7 @@ Item {
+         width: root.panel.iconSize + Style.space(6)
+         height: width
+         radius: Style.cornerRadius > 0 ? Style.space(5) : 0
+-        color: Qt.rgba(Color.popups.background.r, Color.popups.background.g, Color.popups.background.b, 0.85)
++        color: Qt.rgba(Commons.Color.popups.background.r, Commons.Color.popups.background.g, Commons.Color.popups.background.b, 0.85)
+ 
+         Image {
+           anchors.centerIn: parent
+diff --git i/Workspaces.qml w/Workspaces.qml
+index 977bfb6..2d3c46b 100644
+--- i/Workspaces.qml
++++ w/Workspaces.qml
+@@ -5,6 +5,7 @@ import Quickshell.Hyprland
+ import Quickshell.Io
+ import Quickshell.Services.Pipewire
+ import qs.Commons
++import qs.Commons as Commons
+ import qs.Ui
+ import "Glyphs.js" as Glyphs
+ import "Icons.js" as Icons
+@@ -82,7 +83,7 @@ Panel {
+   // Color that icons (and numbers) take with colored icons off: the theme's
+   // "accent" color or its "normal" text color. Older values map across.
+   readonly property string tintStyle: ["normal", "greyscale"].indexOf(String(option("tintStyle", "accent"))) !== -1 ? "normal" : "accent"
+-  readonly property color tintColor: tintStyle === "accent" ? Color.accent : symbolColor
++  readonly property color tintColor: tintStyle === "accent" ? Commons.Color.accent : symbolColor
+   readonly property bool showNumbers: boolOption("showNumbers", true)
+   readonly property bool showTerminalPrograms: boolOption("showTerminalPrograms", true)
+   readonly property bool showCounts: boolOption("showCounts", true)
+@@ -110,7 +111,7 @@ Panel {
+ 
+   function activeTileFill() {
+     if (root.activeTile === "solid") return root.symbolColor
+-    if (root.activeTile === "accent") return Color.accent
++    if (root.activeTile === "accent") return Commons.Color.accent
+     return Qt.rgba(root.symbolColor.r, root.symbolColor.g, root.symbolColor.b, 0.2)
+   }
+   readonly property string pillContent: ["icons", "number", "both", "none"].indexOf(String(option("pillContent", "icons"))) !== -1
+@@ -1420,15 +1421,15 @@ Panel {
+   // ---- Bar.
+ 
+   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
+-  readonly property color symbolColor: bar ? bar.barForeground : Color.foreground
+-  readonly property color barBackground: bar && bar.background !== undefined ? bar.background : Color.background
+-  readonly property color urgentColor: bar && bar.urgent !== undefined ? bar.urgent : Color.urgent
++  readonly property color symbolColor: bar ? bar.barForeground : Commons.Color.foreground
++  readonly property color barBackground: bar && bar.background !== undefined ? bar.background : Commons.Color.background
++  readonly property color urgentColor: bar && bar.urgent !== undefined ? bar.urgent : Commons.Color.urgent
+ 
+   // The theme's background or foreground, whichever reads better on a fill.
+   function contrastOn(fill) {
+     function luminance(c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b }
+-    var dark = Color.background
+-    var light = Color.foreground
++    var dark = Commons.Color.background
++    var light = Commons.Color.foreground
+     var l = luminance(fill)
+     return Math.abs(l - luminance(dark)) >= Math.abs(l - luminance(light)) ? dark : light
+   }
+@@ -1744,7 +1745,7 @@ Panel {
+   // Keyboard cursor over the popup rows.
+   property int cursorIndex: -1
+   readonly property int rowCount: rows.length
+-  readonly property color panelForeground: bar ? bar.foreground : Color.foreground
++  readonly property color panelForeground: bar ? bar.foreground : Commons.Color.foreground
+   readonly property string panelFont: bar ? bar.fontFamily : Style.font.family
+   // The numbered workspace the popup was opened from (right click); "" when
+   // opened otherwise, and "This workspace" is then the focused one.

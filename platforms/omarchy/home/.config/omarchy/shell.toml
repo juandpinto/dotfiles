@@ -1,0 +1,17 @@
+# Structural bar overrides only; colors continue to follow the active theme.
+# Keep bar.transparent=false in shell.json: that toggle removes the fill entirely.
+[bar]
+# Kitty's background_opacity, so the bar and terminals read as one material.
+background-alpha = 0.93
+size-horizontal = 32
+scale-with-font = false
+
+# Read by our island bar (jdpinto.island-bar), not by Omarchy itself.
+# Logical pixels; saved changes apply live.
+[island-bar]
+# Between the island and the screen edge the bar is on (the top).
+edge-gap = 4
+# Between the island and the screen's left and right edges.
+side-gap = 8
+# Corner radius: 8 matches window corners; 16 or more makes a pill.
+radius = 10

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Map window classes and terminal programs to the monochrome app glyphs under
+# ~/.config/omarchy/app-glyphs (sketchybar-app-font SVGs), as Workspace Icons
+# `iconOverrides`. `mono:` makes the plugin draw them exactly in its tint color.
+set -euo pipefail
+glyphs="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/app-glyphs"
+# Omarchy web apps open in the default browser as `<browser>-<host>__<path>-Default`,
+# with `/` in the path written as `_`; ours is Brave Origin.
+mapping='
+brave-origin brave
+kitty kitty
+com.mitchellh.ghostty ghostty
+foot terminal
+footclient terminal
+chrome-music.apple.com__-Default music
+brave-discord.com__channels_@me-Default discord
+brave-web.whatsapp.com__-Default whatsapp
+brave-youtube.com__-Default youtube
+brave-x.com__-Default x
+brave-photos.google.com__-Default google-photos
+brave-maps.google.com__-Default google-maps
+brave-contacts.google.com__-Default google-contacts
+brave-messages.google.com__web_conversations-Default google-messages
+brave-launchpad.37signals.com__-Default basecamp
+brave-login.tailscale.com__admin_machines-Default tailscale
+brave-app.zoom.us__wc_home-Default zoom
+obsidian obsidian
+md.obsidian.Obsidian obsidian
+1Password 1password
+mpv mpv
+libreoffice-writer libreoffice
+libreoffice-calc libreoffice
+libreoffice-impress libreoffice
+com.moonlight_stream.Moonlight moonlight
+Org.localsend.localsend_app localsend
+nvim neovim
+claude claude
+docker docker
+lazydocker docker
+yazi yazi
+herdr herdr
+'
+json() {
+    local key glyph
+    while read -r key glyph; do
+        [[ -n $key ]] || continue
+        [[ -f $glyphs/$glyph.svg ]] || { printf 'missing glyph: %s.svg\n' "$glyph" >&2; exit 1; }
+        printf '%s\t%s\n' "$key" "mono:$glyphs/$glyph.svg"
+    done <<< "$mapping" | jq -Rn '[inputs | split("\t") | {key: .[0], value: .[1]}] | from_entries'
+}
+case "${1:-}" in
+    json) json ;;
+    apply) omarchy bar set woodenplastic.workspace-icons iconOverrides "$(json)" --json ;;
+    *) printf 'Usage: bar-app-glyphs json|apply\n' >&2; exit 2 ;;
+esac
