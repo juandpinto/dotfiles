@@ -1,6 +1,8 @@
 # Dotfiles
 
-Personal macOS dotfiles for Juan Pinto, managed with [GNU Stow](https://www.gnu.org/software/stow/). There's no bootstrap script or install target—setup is the handful of manual steps below.
+Personal macOS and Omarchy/Asahi dotfiles for Juan Pinto. The original Mac layout is managed with [GNU Stow](https://www.gnu.org/software/stow/); shared Neovim/IPython configuration remains here, with Linux-specific files in a separate overlay.
+
+**Linux:** follow [the Omarchy overlay guide](platforms/omarchy/README.md) and its selective `link.sh`. **Do not Stow the root package on Linux.** The Mac instructions below remain unchanged in scope. Both platforms use one `main` branch, not diverging OS branches. A small private companion repo (`~/.dotfiles-private`) holds the mail account configs, which contain addresses but no secrets; everything here is safe to be public.
 
 This is my actual day-to-day setup, not a general-purpose framework, so it comes with strong personal opinions (Everforest theme everywhere, specific keybindings, an AI-coding-agent-heavy workflow via [pi](https://github.com/earendil-works/pi)) and machine-specific assumptions (macOS, Homebrew, zsh). It's public for reference—browse it for ideas or fork what's useful, but treat it as inspiration rather than something to install wholesale.
 
@@ -20,13 +22,13 @@ This is my actual day-to-day setup, not a general-purpose framework, so it comes
 | Linting/formatting | Ruff (Python), StyLua (Lua), markdownlint                 |
 | Diff/review        | hunk                                                      |
 
-## Prerequisites
+## macOS prerequisites
 
 - macOS
 - [Homebrew](https://brew.sh)
 - GNU Stow: `brew install stow`
 
-## Setup on a new machine
+## macOS setup on a new machine
 
 1. Clone the repo to `~/.dotfiles`:
 
@@ -47,7 +49,7 @@ This is my actual day-to-day setup, not a general-purpose framework, so it comes
     stow -t ~ .
     ```
 
-    `.stow-local-ignore` keeps `.git`, `.gitignore`, `.DS_Store`, and the root `README.md`/`AGENTS.md`/`package-lock.json` out of the link; those stay in the repo instead of linking into `$HOME`.
+    `.stow-local-ignore` keeps `.git`, `.gitignore`, `.DS_Store`, `platforms/`, and the root `README.md`/`AGENTS.md`/`package-lock.json` out of the link; those stay in the repo instead of linking into `$HOME`.
 
 4. If `~/.config/<tool>` already exists as a real directory before you stow, rather than being created fresh by Stow, Stow folds into it and links files individually instead of linking the whole directory. That's expected, and it's exactly what happens with `~/.config/pi/agent`—see below.
 

@@ -1,8 +1,9 @@
 # AGENTS.md
 
-Personal macOS dotfiles repo for Juan Pinto. No build, test, lint, or CI
-pipeline — there is nothing to "run" here, just config files that get
-symlinked into `$HOME`.
+Personal macOS and Omarchy dotfiles repo for Juan Pinto. The existing root
+Stow package remains the Mac deployment; Linux-only files live in the ignored
+`platforms/omarchy/home/` overlay. Neovim and IPython are shared. No CI pipeline.
+Configuration validation and Linux migration notes live in `platforms/omarchy/`.
 
 ## Symlink model (GNU Stow)
 
@@ -10,8 +11,7 @@ symlinked into `$HOME`.
   `$HOME` (`stow -t ~ .` from here, or equivalent). `.stow-local-ignore` at
   the repo root excludes `.git`, `.gitignore`, `.DS_Store`, and the
   top-level `README.md`/`AGENTS.md`/`package-lock.json` from being linked.
-  There's still no build/test/CI and no separate bootstrap script beyond
-  running `stow`.
+  The legacy Mac package still has no build or CI step beyond running Stow. Linux has a selective linker and narrow configuration regression checks under `platforms/omarchy/`.
 - Top-level dotfiles are symlinked directly: `~/.zshrc`, `~/.wezterm.lua`
   -> `~/.dotfiles/<file>`.
 - Stow "folds" a directory into a single symlink only when the target
@@ -44,6 +44,26 @@ symlinked into `$HOME`.
   usual and pi installs `npm:`/`git:` packages into fresh local dirs on
   first run, no manual steps needed.
 
+## Incremental dual-OS deployment
+
+- Keep one `main` branch, not permanently diverging OS branches.
+- **Do not run the root `stow -t ~ .` on Linux.** It also contains AeroSpace,
+  Sketchybar, launchd, Karabiner, and macOS shell/terminal settings.
+- Both Linux and macOS use `~/.dotfiles`. Prefer `$DOTFILES_DIR` or relative links in new code, not a username or a platform-specific checkout path.
+- Linux's active Pi agent directory remains the real `~/.pi/agent`, with individual authored resources linked from `.config/pi/agent` and Linux settings from the overlay. Preserve the distro skills and never link credentials, sessions, model caches, npm or git package installations into this repository. On Linux, Omarchy's existing theme-set hook publishes our exact Everforest palette to the generated `~/.pi/agent/themes/everforest-omarchy.json`; Pi's native file watcher reloads it. Do not restore terminal-detected light/dark pairing or add another watcher—the Herdr notification/color-query race can leave Pi on the wrong palette. The Mac's theme-following package remains unchanged.
+- Linux links only explicitly selected shared configs and files under
+  `platforms/omarchy/home/`. The overlay is excluded from root Stow, so it
+  cannot accidentally become a `~/platforms` directory on the Mac.
+- The four mail account configs (`aerc/accounts.conf`, `isyncrc`, `msmtp/config`, `notmuch/default/config`) contain email addresses and logins, so they live in the **private companion repo** `~/.dotfiles-private` (same `omarchy/home/` layout; `DOTFILES_PRIVATE_DIR` overrides the path), never in this public repo. `link.sh` links them when present; `.gitignore` blocks their public paths. Keep docs here free of real addresses too (use `<icloud-login>`-style placeholders).
+- `link.sh` walks overlay roots with `find` (so uncommitted authored files still link) but prunes `__pycache__`/`.git`. Directory links, not per-file links: Omarchy theme dirs, our `jdpinto.*` plugin clones, Keystroke extensions, and `~/.config/kanata`. Everything else links file by file so real directories (`~/.config/aerc`, `~/.config/hypr`, `~/.local/share/applications`) can mix our links with Omarchy-managed files.
+- Never hardcode `/home/<user>` in overlay files; use `os.getenv("HOME")` in Hyprland Lua and `$HOME`/`%h` elsewhere (strata's installer once wrote absolute paths into `bindings.lua`; they were replaced).
+- Shared Neovim/IPython edits must retain Mac behavior. Omarchy owns desktop
+  palette selection; its theme-set hook writes the same `~/.cache/appearance`
+  contract that launchd supplies on macOS. No second Linux polling daemon.
+- Do not link runtime data, credentials, histories, Jupyter connection files,
+  or generated theme files into this repo. Backups stay under local state.
+- Do not push or commit the migration without user review.
+
 ## Git submodules
 
 - Two real submodules: `.config/zsh/plugins/fzf-git.sh` and
@@ -68,7 +88,7 @@ symlinked into `$HOME`.
 
 - `.config/ruff/ruff.toml` is the machine-wide Ruff config (line length 80,
   double quotes, ignores `E402`/`F704` to tolerate notebook-style scripts).
-  It's not a lint config for this repo's own code — there is no Python here.
+  It's not a repository-wide build requirement; the Linux overlay has small configuration tests rather than a Python application.
 - Root `.markdownlint.jsonc` applies to Markdown anywhere markdownlint is
   invoked relative to this repo (e.g. `MD013`/line-length and several other
   rules are disabled; `MD007` indent is 4).
