@@ -1,0 +1,5 @@
+{
+  "everforest": {"icon":"󰖔", "label":"Everforest dark / light", "aliases":["appearance", "dark mode", "light mode"], "action":"$HOME/.local/bin/everforest toggle"},
+  "everforest-dark": {"icon":"󰖔", "label":"Everforest Dark", "action":"$HOME/.local/bin/everforest dark"},
+  "everforest-light": {"icon":"󰖨", "label":"Everforest Light", "action":"$HOME/.local/bin/everforest light"}
+}

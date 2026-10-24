@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Omarchy is Linux's appearance authority; macOS's LaunchAgent writes the same
+# cache contract. No second watcher and no changes to keybindings on a switch.
+set -euo pipefail
+palette="$HOME/.local/state/omarchy/current/theme"
+mode=$(omarchy-theme-color --file "$palette/colors.toml" mode)
+[[ $mode == dark || $mode == light ]] || exit 1
+cache="${XDG_CACHE_HOME:-$HOME/.cache}"
+mkdir -p "$cache"
+tmp=$(mktemp "$cache/.appearance.XXXXXX")
+trap 'rm -f -- "$tmp"' EXIT
+printf '%s\n' "$mode" > "$tmp"
+mv -f -- "$tmp" "$cache/appearance"
+if tmux list-sessions >/dev/null 2>&1 && [[ -r $palette/tmux.conf ]]; then
+    tmux source-file "$palette/tmux.conf"
+fi
+
+# Keep our exact Pi palettes, but use its native file hot-reload instead of
+# terminal light/dark detection, which can race Herdr's background-color relay.
+pi_themes="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/themes"
+pi_source="$pi_themes/everforest-$mode.json"
+if [[ -r $pi_source ]]; then
+    tmp=$(mktemp "$pi_themes/.everforest-omarchy.XXXXXX")
+    jq --arg mode "$mode" '.name = "everforest-omarchy" | .appearance = $mode' \
+        "$pi_source" > "$tmp"
+    mv -f -- "$tmp" "$pi_themes/everforest-omarchy.json"
+    # Bundled Pi can report only the temporary filename for an atomic rename.
+    # Notify its existing directory watcher using the final filename as well.
+    touch -- "$pi_themes/everforest-omarchy.json"
+fi

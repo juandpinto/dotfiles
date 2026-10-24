@@ -7,3 +7,4 @@
 ^/tests$
 ^/\.local/bin/__pycache__$
 ^/package-lock.json$
+^/platforms$

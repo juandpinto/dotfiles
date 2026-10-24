@@ -1,0 +1,3 @@
+# First installed terminal wins; Foot remains an available recovery fallback.
+kitty.desktop
+foot.desktop

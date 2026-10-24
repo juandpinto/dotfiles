@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Switch only between the two Everforest variants; keep the current wallpaper.
+set -euo pipefail
+mode=${1:-toggle}
+case "$mode" in
+    toggle)
+        current=$(omarchy-theme-color --file "$HOME/.local/state/omarchy/current/theme/colors.toml" mode)
+        if [[ $current == light ]]; then mode=dark; else mode=light; fi ;;
+    dark|light) ;;
+    status)
+        exec omarchy-theme-color --file "$HOME/.local/state/omarchy/current/theme/colors.toml" mode ;;
+    *) printf 'Usage: everforest [toggle|dark|light|status]\n' >&2; exit 2 ;;
+esac
+if [[ $mode == light ]]; then theme=everforest-light; else theme=everforest; fi
+exec env OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme"
