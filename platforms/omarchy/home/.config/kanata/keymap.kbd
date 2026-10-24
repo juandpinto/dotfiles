@@ -1,0 +1,12 @@
+;; Shared Caps-only keymap. No SpaceFN, Shift, Right Alt, or desktop changes.
+(defsrc caps)
+
+(defalias
+  ;; Escape on a short lone tap. Left Control on another key's press,
+  ;; or after 200 ms when held alone.
+  ;; The first timeout is zero so a rapid tap followed by a Control chord
+  ;; does not repeat/hold Escape instead of becoming Control.
+  cap (tap-hold-press 0 200 esc lctl)
+)
+
+(deflayer base @cap)

@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Full SpaceFN trial: accepted timings/palm guard; never enable a service.
+set -euo pipefail
+
+config="${XDG_CONFIG_HOME:-$HOME/.config}/kanata/spacefn.kbd"
+base_state="${XDG_STATE_HOME:-$HOME/.local/state}/kanata-trial"
+state="$base_state/spacefn"
+guard="${XDG_CONFIG_HOME:-$HOME/.config}/kanata/spacefn_touchpad_guard.py"
+marker="$state/touchpad-paused"
+
+if [[ ! -t 0 || ! -t 1 ]]; then
+  printf 'Run this helper in a visible terminal.\n' >&2
+  exit 1
+fi
+if [[ ! -x /usr/bin/kanata ]]; then
+  printf 'Kanata is not installed. No keyboard changes started.\n' >&2
+  exit 1
+fi
+
+mkdir -p "$state"
+chmod 700 "$state"
+recorded_exit=0
+restore_touchpad() {
+  /usr/bin/python "$guard" --marker "$marker" --restore || \
+    printf 'Touchpad recovery failed. Run: omarchy toggle touchpad on\n' >&2
+}
+cleanup() {
+  local status=$?
+  restore_touchpad
+  printf 'stopped\n' > "$state/trial.status"
+  if (( ! recorded_exit )); then
+    printf '%s\n' "$status" > "$state/trial.exit"
+  fi
+}
+# Share the existing Caps-trial lock: two pending trial windows must not race.
+exec 9>"${XDG_RUNTIME_DIR:-$base_state}/kanata-caps-trial.lock"
+if ! /usr/bin/flock --nonblock 9; then
+  printf 'Another keyboard trial window is open. Close it before this trial.\n' >&2
+  exit 1
+fi
+if /usr/bin/pgrep -x kanata >/dev/null || /usr/bin/pgrep -x keyd >/dev/null; then
+  printf 'A keyboard remapper is already running. Stop it before this trial.\n' >&2
+  exit 1
+fi
+# Only register recovery after owning the lock and excluding other remappers:
+# an unsuccessful second launcher must not unpause another trial's touchpad.
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
+/usr/bin/kanata --check --cfg "$config" --no-wait
+/usr/bin/python "$guard" --marker "$marker" --check
+printf '\nCAPS + FULL SPACEFN KANATA TRIAL\n\n'
+printf '  Caps behavior: unchanged (tap Escape / chord or hold Control).\n'
+printf '  Short Space tap: Space, including Neovim leader sequences.\n'
+printf '  Hold Space for about 180 ms, then H/J/K/L: Left/Down/Up/Right.\n'
+printf '  Add Shift to select; add Caps/Control for Control+arrow movement.\n'
+printf '  Quick Ctrl+Space tap (<180 ms): the normal tmux prefix.\n'
+printf '  Quick Super+Space tap: menu on release (<180 ms).\n'
+printf '  Held Super+Space + H/J/K/L: Super+arrows in either key order.\n'
+printf '  Built-in trackpad pauses only while the navigation layer is active.\n'
+printf '  Releasing Space restores it; external mice are not affected.\n'
+printf '  Both Shifts, Right Alt, and desktop bindings: unchanged.\n\n'
+printf '\nADDITIONAL KEYS (hold Space for about 180 ms first)\n'
+printf '  M / comma       -> Page Down / Page Up\n'
+printf '  G / semicolon   -> Home / End\n'
+printf '  Backspace       -> Forward Delete (test in a scratch text buffer)\n'
+printf '  Slash           -> Backtick; add Shift for tilde\n'
+printf '  B               -> Literal Space, without leaving the layer\n'
+printf '  1 / 2           -> Display brightness down / up (test up first)\n'
+printf '  7 / 8 / 9       -> Previous track / Play-Pause / Next track\n'
+printf '  0 / minus / =   -> Mute / Volume down / Volume up\n\n'
+printf 'Media actions use the existing Omarchy bindings and need player support.\n'
+printf 'Test media keys without modifiers first; Omarchy modified-media actions\n'
+printf '(e.g. Shift+brightness for keyboard backlight) still apply.\n'
+printf 'A long lone Space hold is navigation, not a repeating space character.\n'
+printf 'Rapid Space+key rolls should remain normal typing.\n\n'
+printf 'The trial stops automatically after five minutes.\n'
+printf 'Stop early: hold PHYSICAL Left Control + Space + Escape together.\n'
+printf 'Ctrl+C in this terminal also stops it; test Caps+C elsewhere.\n'
+printf 'After stopping: Caps is ordinary Caps Lock and Space is normal.\n'
+printf 'No service, input-group memberships, or udev rules will be changed.\n\n'
+printf 'ready\n' > "$state/trial.status"
+read -r -p 'Press Enter when ready to start; you may then be asked for sudo: ' _
+/usr/bin/sudo -v
+
+if /usr/bin/pgrep -x kanata >/dev/null || /usr/bin/pgrep -x keyd >/dev/null; then
+  printf 'Another remapper started while waiting. Trial cancelled.\n' >&2
+  exit 1
+fi
+/usr/bin/kanata --check --cfg "$config" --no-wait
+/usr/bin/python "$guard" --marker "$marker" --check
+printf 'running\n' > "$state/trial.status"
+printf '\nStarting now. Release all keys during Kanata\x27s startup delay.\n\n'
+
+set +e
+/usr/bin/sudo /usr/bin/timeout --foreground --signal=TERM --kill-after=5s 300s \
+  /usr/bin/kanata --cfg "$config" --no-wait --log-layer-changes 2>&1 | \
+  /usr/bin/python "$guard" --marker "$marker" --log "$state/trial.log"
+statuses=("${PIPESTATUS[@]}")
+result=${statuses[0]}
+set -e
+restore_touchpad
+if (( statuses[1] != 0 )); then
+  printf '\nTouchpad guard exited with %s; inspect the trial output before continuing.\n' "${statuses[1]}"
+fi
+printf '%s\n' "$result" > "$state/trial.exit"
+recorded_exit=1
+printf 'stopped\n' > "$state/trial.status"
+
+case "$result" in
+  0)       printf '\nKanata stopped. Normal keyboard behavior restored.\n' ;;
+  124)     printf '\nFive-minute trial finished. Normal keyboard behavior restored.\n' ;;
+  130|143) printf '\nTrial interrupted. Normal keyboard behavior restored.\n' ;;
+  *)       printf '\nTrial ended with exit %s. See %s/trial.log.\n' "$result" "$state" ;;
+esac
+printf '\nPress Enter to close this window before starting another trial.\n'
+read -r _ || true

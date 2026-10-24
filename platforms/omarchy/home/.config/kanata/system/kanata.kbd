@@ -1,0 +1,9 @@
+;; Installed as a root-owned copy at /etc/kanata/kanata.kbd.
+(defcfg
+  process-unmapped-keys yes
+  linux-dev-names-include ("Apple SPI Keyboard")
+  linux-output-device-name "kanata-spacefn"
+  ;; Wait for the built-in keyboard at boot and re-detect after reconnection.
+  linux-continue-if-no-devs-found yes
+)
+(include keymap.kbd)

@@ -1,0 +1,21 @@
+[Unit]
+Description=Kanata SpaceFN palm guard for the Hyprland session
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=HYPRLAND_INSTANCE_SIGNATURE
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python -B %h/.config/kanata/kanata_guard_session.py
+ExecStopPost=/usr/bin/python -B %h/.config/kanata/spacefn_touchpad_guard.py --marker %t/kanata/touchpad-paused --restore
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=12
+RuntimeDirectory=kanata
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=restart
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Install reviewed root-owned copies, then enable the boot and desktop services.
+set -euo pipefail
+[[ -t 0 && -t 1 ]] || { printf 'Run this installer in a visible terminal.\n' >&2; exit 1; }
+source_dir="${XDG_CONFIG_HOME:-$HOME/.config}/kanata"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/kanata"
+mkdir -p "$state"
+chmod 700 "$state"
+exec > >(/usr/bin/tee "$state/install.log") 2>&1
+stage=$(mktemp -d)
+cleanup() { rm -rf -- "$stage"; }
+trap cleanup EXIT
+
+printf 'Permanent Kanata installation\n\n'
+printf 'Keyboard: root-owned config and a boot service.\n'
+printf 'Palm guard: desktop-user service; no input-group permissions or TCP server.\n'
+printf 'Physical Left Ctrl+Space+Escape stops the remapper until explicitly restarted.\n\n'
+
+main_pid=$(systemctl show kanata.service --property=MainPID --value)
+while read -r pid; do
+  [[ $pid == "$main_pid" ]] || {
+    printf 'A foreground/trial Kanata is running. Stop it before installation.\n' >&2
+    exit 1
+  }
+done < <(pgrep -x kanata || true)
+if pgrep -x keyd >/dev/null; then
+  printf 'keyd is running; stop it before installation.\n' >&2
+  exit 1
+fi
+
+cp "$source_dir/system/kanata.kbd" "$stage/kanata.kbd"
+cp "$source_dir/keymap-spacefn.kbd" "$stage/keymap.kbd"
+/usr/bin/kanata --check --cfg "$stage/kanata.kbd" --no-wait
+/usr/bin/systemd-analyze verify "$source_dir/system/kanata.service"
+/usr/bin/systemd-analyze --user verify "$HOME/.config/systemd/user/kanata-palm-guard.service"
+/usr/bin/python -B "$source_dir/spacefn_touchpad_guard.py" \
+  --marker "$XDG_RUNTIME_DIR/kanata/touchpad-paused" --check
+
+printf 'Please enter your sudo password if prompted.\n'
+sudo -v
+for path in /etc/kanata /etc/kanata/kanata.kbd /etc/kanata/keymap.kbd \
+  /etc/systemd/system/kanata.service /etc/modules-load.d/kanata.conf; do
+  [[ ! -L $path ]] || { printf 'Refusing to overwrite symlink: %s\n' "$path" >&2; exit 1; }
+done
+stamp=$(date +%Y%m%d-%H%M%S)
+backup="/etc/kanata/backups/$stamp"
+sudo install -d -o root -g root -m 0755 /etc/kanata /etc/modules-load.d
+sudo install -d -o root -g root -m 0700 "$backup"
+for path in /etc/kanata/kanata.kbd /etc/kanata/keymap.kbd \
+  /etc/systemd/system/kanata.service /etc/modules-load.d/kanata.conf; do
+  if [[ -f $path ]]; then sudo cp -a --parents "$path" "$backup/"; fi
+done
+sudo install -o root -g root -m 0644 "$stage/kanata.kbd" /etc/kanata/kanata.kbd
+sudo install -o root -g root -m 0644 "$stage/keymap.kbd" /etc/kanata/keymap.kbd
+sudo install -o root -g root -m 0644 "$source_dir/system/kanata.service" /etc/systemd/system/kanata.service
+printf 'uinput\n' > "$stage/kanata.conf"
+sudo install -o root -g root -m 0644 "$stage/kanata.conf" /etc/modules-load.d/kanata.conf
+sudo modprobe uinput
+sudo /usr/bin/kanata --check --cfg /etc/kanata/kanata.kbd --no-wait
+sudo systemctl daemon-reload
+systemctl --user daemon-reload
+
+rollback_startup() {
+  local result=$?
+  trap - ERR
+  printf '\nStartup failed. Stopping both services so the keyboard stays recoverable.\n' >&2
+  sudo systemctl disable --now kanata.service || true
+  systemctl --user disable --now kanata-palm-guard.service || true
+  printf 'failed\n' > "$state/install.status"
+  exit "$result"
+}
+trap rollback_startup ERR
+printf 'starting\n' > "$state/install.status"
+systemctl --user enable kanata-palm-guard.service
+systemctl --user restart kanata-palm-guard.service
+sleep 1
+systemctl --user is-active --quiet kanata-palm-guard.service
+printf '\nStarting Kanata now. Release all keys for the next few seconds.\n'
+sudo systemctl enable kanata.service
+sudo systemctl restart kanata.service
+
+ready=0
+for _ in $(seq 1 20); do
+  sleep 1
+  if systemctl is-active --quiet kanata.service && \
+     systemctl --user is-active --quiet kanata-palm-guard.service && \
+     hyprctl -j devices | /usr/bin/python -c \
+       'import json,sys; sys.exit(not any(k["name"]=="kanata-spacefn" for k in json.load(sys.stdin)["keyboards"]))' && \
+     /usr/bin/python -c \
+       'import json,os,pathlib,sys; p=pathlib.Path(os.environ["XDG_RUNTIME_DIR"])/"kanata/guard-state.json"; sys.exit(not(p.exists() and json.loads(p.read_text()).get("service")=="active"))'; then
+    ready=1
+    break
+  fi
+done
+if (( ! ready )); then
+  printf 'Startup verification timed out.\n' >&2
+  false
+fi
+trap - ERR
+printf 'installed\n' > "$state/install.status"
+printf '%s\n' "$backup" > "$state/system-backup-path"
+printf '\nBoth services are enabled and active. No five-minute timeout remains.\n'
+printf 'Closing this terminal will NOT stop the keyboard service.\n'
+printf 'Emergency stop: PHYSICAL Left Control + Space + Escape.\n'
+printf 'Restart after emergency stop: sudo systemctl start kanata.service\n'
+printf '\nPress Enter to close this window.\n'
+read -r _ || true

@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Foreground-only trial: never enable a service or change device permissions.
+set -euo pipefail
+
+config="${XDG_CONFIG_HOME:-$HOME/.config}/kanata/kanata.kbd"
+state="${XDG_STATE_HOME:-$HOME/.local/state}/kanata-trial"
+
+if [[ ! -t 0 || ! -t 1 ]]; then
+  printf 'Run this helper in a visible terminal.\n' >&2
+  exit 1
+fi
+if [[ ! -x /usr/bin/kanata ]]; then
+  printf 'Install the ARM-compatible source package: omarchy pkg aur add kanata\n' >&2
+  exit 1
+fi
+
+mkdir -p "$state"
+chmod 700 "$state"
+exec 9>"${XDG_RUNTIME_DIR:-$state}/kanata-caps-trial.lock"
+if ! /usr/bin/flock --nonblock 9; then
+  printf 'Another Caps trial is already open. Close it before starting another.\n' >&2
+  exit 1
+fi
+if /usr/bin/pgrep -x kanata >/dev/null || /usr/bin/pgrep -x keyd >/dev/null; then
+  printf 'A keyboard remapper is already running. Stop it before this trial.\n' >&2
+  exit 1
+fi
+
+/usr/bin/kanata --check --cfg "$config" --no-wait
+printf '\nCAPS-ONLY KANATA TRIAL\n\n'
+printf '  Short Caps tap -> Escape\n'
+printf '  Caps + another key -> Control immediately\n'
+printf '  Caps held alone for 200 ms -> Control\n'
+printf '  Space, both Shifts, Right Alt, and desktop shortcuts -> unchanged\n\n'
+printf 'The trial stops automatically after five minutes.\n'
+printf 'Stop early: hold PHYSICAL Left Control + Space + Escape together.\n'
+printf 'Ctrl+C in this terminal also stops the trial.\n'
+printf 'Use another window for keyboard tests: Caps+C here sends Ctrl+C!\n\n'
+printf 'After stopping, Caps is an ordinary Caps Lock key (not Compose).\n'
+printf 'No service will be enabled. No input-group or udev changes are made.\n\n'
+printf 'ready\n' > "$state/trial.status"
+read -r -p 'Press Enter when ready to start; you may then be asked for sudo: ' _
+/usr/bin/sudo -v
+
+# Recheck after the readiness/password prompts, before grabbing any keyboard.
+if /usr/bin/pgrep -x kanata >/dev/null || /usr/bin/pgrep -x keyd >/dev/null; then
+  printf 'Another remapper started while waiting. Trial cancelled.\n' >&2
+  exit 1
+fi
+/usr/bin/kanata --check --cfg "$config" --no-wait
+printf 'running\n' > "$state/trial.status"
+printf '\nStarting now. Release all keys during Kanata\x27s startup delay.\n\n'
+
+set +e
+/usr/bin/sudo /usr/bin/timeout --foreground --signal=TERM --kill-after=5s 300s \
+  /usr/bin/kanata --cfg "$config" --no-wait 2>&1 | /usr/bin/tee "$state/trial.log"
+result=${PIPESTATUS[0]}
+set -e
+printf '%s\n' "$result" > "$state/trial.exit"
+printf 'stopped\n' > "$state/trial.status"
+
+case "$result" in
+  0)   printf '\nKanata stopped. Normal keyboard behavior restored.\n' ;;
+  124) printf '\nFive-minute trial finished. Normal keyboard behavior restored.\n' ;;
+  130) printf '\nTrial interrupted. Normal keyboard behavior restored.\n' ;;
+  *)   printf '\nTrial ended with exit %s. See %s/trial.log.\n' "$result" "$state" ;;
+esac
+printf '\nPress Enter to close this window.\n'
+read -r _ || true

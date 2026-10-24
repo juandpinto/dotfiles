@@ -1,0 +1,33 @@
+[Unit]
+Description=Kanata internal-keyboard remapper
+Documentation=https://github.com/jtroo/kanata
+After=systemd-modules-load.service systemd-udevd.service
+StartLimitIntervalSec=30
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/kanata --check --cfg /etc/kanata/kanata.kbd --no-wait
+ExecStart=/usr/bin/kanata --cfg /etc/kanata/kanata.kbd --no-wait --log-layer-changes
+# The physical Ctrl+Space+Escape emergency exit is success (0): do NOT restart it.
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

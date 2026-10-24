@@ -1,0 +1,40 @@
+;; Full SpaceFN layer, retaining the accepted Caps and Space hold timings.
+(defsrc
+  caps spc
+  h j k l
+  m comm n Period Slash bspc b
+  1 2 7 8 9 0 min eql
+)
+
+(defalias
+  ;; Unchanged from the successful Caps-only trial.
+  cap (tap-hold-press 0 200 esc lctl)
+
+  ;; A short Space press is literal Space. Hold for 180 ms for navigation.
+  ;; Deliberately NOT tap-hold-press: ordinary overlapping typing should
+  ;; not turn into arrows merely because another key was pressed.
+  ;; Apply the same tap/hold decision with every modifier. A quick
+  ;; Super+Space tap opens the menu on release; holding Space instead
+  ;; enables Super+arrows, regardless of which key was pressed first.
+  ;; Use a short Ctrl+Space tap (under 180 ms) for the tmux prefix.
+  spfn (tap-hold 0 180 spc (layer-while-held nav))
+)
+
+(deflayer base
+  @cap @spfn
+  h j k l
+  m comm n Period Slash bspc b
+  1 2 7 8 9 0 min eql
+)
+
+;; Space+N/period emit Home/End; G/semicolon remain ordinary keys.
+;; Space+B emits a literal space without leaving the layer.
+;; 7/9 use standard previous/next-track events rather than continuous seeking,
+;; so Linux can use Omarchy's existing media bindings without custom commands.
+;; Modifiers pass through, including Shift+/ for tilde and modified navigation.
+(deflayer nav
+  _ _
+  left down up rght
+  pgdn pgup home end grv del spc
+  brdn brup prev pp next mute vold volu
+)

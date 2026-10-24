@@ -1,0 +1,14 @@
+;; Linux device configuration for the Caps-only foreground trial.
+;; Do not enable automatic startup until the physical keyboard tests pass.
+(defcfg
+  process-unmapped-keys yes
+
+  ;; Grab only this MacBook's internal keyboard, not the trackpad, Touch Bar,
+  ;; power/lid device, virtual keyboards, or external keyboards.
+  linux-dev-names-include ("Apple SPI Keyboard")
+  linux-output-device-name "kanata-caps-trial"
+)
+
+;; The mapping itself is kept separate so it can also be used on macOS
+;; with an appropriate macOS device/configuration wrapper.
+(include keymap.kbd)

@@ -352,7 +352,7 @@
                                     "modifiers": { "optional": ["any"] },
                                     "simultaneous": [
                                         { "key_code": "spacebar" },
-                                        { "key_code": "g" }
+                                        { "key_code": "n" }
                                     ],
                                     "simultaneous_options": {
                                         "key_down_order": "strict",
@@ -384,7 +384,7 @@
                                     "modifiers": { "optional": ["any"] },
                                     "simultaneous": [
                                         { "key_code": "spacebar" },
-                                        { "key_code": "semicolon" }
+                                        { "key_code": "period" }
                                     ],
                                     "simultaneous_options": {
                                         "key_down_order": "strict",
@@ -845,7 +845,7 @@
                                     }
                                 ],
                                 "from": {
-                                    "key_code": "g",
+                                    "key_code": "n",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "home" }],
@@ -860,7 +860,7 @@
                                     }
                                 ],
                                 "from": {
-                                    "key_code": "semicolon",
+                                    "key_code": "period",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "end" }],
