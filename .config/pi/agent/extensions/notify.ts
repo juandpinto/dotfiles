@@ -4,13 +4,10 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
  * Notify: OS-level notification when pi finishes responding and is waiting
  * on you, so you can tab away (or detach) without missing that it's done.
  *
- * Delivery: writes the WezTerm/xterm "OSC 777" notify escape sequence to
- * stderr (never stdout, so it can't interleave with pi's own TUI frames),
- * wrapped in a tmux DCS passthrough when running inside tmux (requires
- * `set -g allow-passthrough on` in tmux.conf — already set in this repo's
- * tmux.conf). OSC 777 is what WezTerm implements natively; if you switch
- * terminals later, check whether it understands OSC 777 before relying on
- * this again.
+ * Delivery: Kitty's OSC 99 or WezTerm/xterm OSC 777, written to stderr
+ * (never stdout) and wrapped in tmux DCS passthrough when needed.
+ * This reaches the displaying terminal, including over SSH, without a
+ * second desktop-notification process. Terminal escape payloads are sanitized.
  *
  * Debounce: `agent_settled` arms a short delay timer rather than notifying
  * immediately. This is not about detecting whether you're paying attention
@@ -38,17 +35,28 @@ const PREVIEW_MAX_CHARS = 160;
 // ── Terminal delivery ────────────────────────────────────────────────────
 
 /** Wrap an escape sequence for tmux DCS passthrough (no-op outside tmux). */
-function wrapForTmux(sequence: string): string {
-	if (!process.env.TMUX) return sequence;
+export function wrapForTmux(sequence: string, env = process.env): string {
+	if (!env.TMUX) return sequence;
 	// DCS passthrough requires doubling any ESC bytes inside the payload.
 	const escaped = sequence.replaceAll("\x1b", "\x1b\x1b");
 	return `\x1bPtmux;${escaped}\x1b\\`;
 }
 
-/** Send a desktop notification via OSC 777 (WezTerm, Ghostty, iTerm2, rxvt-unicode). */
+/** Build terminal-safe notifications without displaying one during tests. */
+export function notificationSequence(title: string, body: string, env = process.env): string {
+	const clean = (text: string) => text.replace(/[\x00-\x1f\x7f-\x9f]/g, " ").replaceAll(";", "；");
+	const safeTitle = clean(title);
+	const safeBody = clean(body);
+	if (env.KITTY_WINDOW_ID || env.KITTY_PID || env.TERM === "xterm-kitty") {
+		const id = `pi-${process.pid}`;
+		return `\x1b]99;i=${id}:d=0;${safeTitle}\x1b\\` +
+			`\x1b]99;i=${id}:p=body;${safeBody}\x1b\\`;
+	}
+	return `\x1b]777;notify;${safeTitle};${safeBody}\x07`;
+}
+
 function notify(title: string, body: string): void {
-	const sequence = `\x1b]777;notify;${title};${body}\x07`;
-	process.stderr.write(wrapForTmux(sequence));
+	process.stderr.write(wrapForTmux(notificationSequence(title, body)));
 }
 
 // ── Context for the notification body ───────────────────────────────────
@@ -110,6 +118,7 @@ function scheduleNotify(pi: ExtensionAPI, ctx: ExtensionContext): void {
 			getTmuxSessionName(pi),
 			Promise.resolve(getLastAssistantPreview(ctx)),
 		]);
+		if (!ctx.isIdle()) return;
 		const title = sessionName ? `Pi (${sessionName})` : "Pi";
 		notify(title, preview ?? "Ready for input");
 	}, IDLE_DELAY_MS);

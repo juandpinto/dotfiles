@@ -1,0 +1,17 @@
+{
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
+  "lastChangelogVersion": "1.2.0",
+  "theme": "everforest-omarchy",
+  "defaultProvider": "github-copilot",
+  "defaultModel": "gpt-6.1-sol",
+  "defaultThinkingLevel": "xhigh",
+  "showHardwareCursor": true,
+  "fullscreenWheelScrollLines": 5,
+  "editorPaddingX": 2,
+  "outputPad": 1,
+  "treeFilterMode": "default",
+  "packages": [
+    "npm:pi-rewind@0.5.0"
+  ],
+  "hideThinkingBlock": false
+}

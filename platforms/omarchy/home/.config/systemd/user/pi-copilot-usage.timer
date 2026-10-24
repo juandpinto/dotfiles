@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Pi/Copilot usage every five minutes during the desktop session
+PartOf=graphical-session.target
+
+[Timer]
+OnActiveSec=5s
+OnUnitInactiveSec=5min
+AccuracySec=15s
+
+[Install]
+WantedBy=graphical-session.target

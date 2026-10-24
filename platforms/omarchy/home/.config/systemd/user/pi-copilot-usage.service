@@ -1,0 +1,10 @@
+[Unit]
+Description=Update Pi token usage and GitHub Copilot allowance for the Omarchy bar
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/uv run --offline --no-project --python /usr/bin/python3 %h/.local/bin/pi-copilot-usage.py
+TimeoutStartSec=45
+UMask=0077
+NoNewPrivileges=yes

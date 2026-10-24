@@ -325,7 +325,8 @@ class LookbackComponent implements Component {
 }
 
 async function openLookback(ctx: ExtensionContext): Promise<void> {
-	if (!ctx.hasUI) return;
+	// RPC exposes hasUI for dialogs, but custom terminal overlays are TUI-only.
+	if (ctx.mode !== "tui") return;
 	if (!ctx.isIdle()) {
 		ctx.ui.notify("Wait for the agent to finish before opening lookback", "warning");
 		return;
