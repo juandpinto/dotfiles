@@ -46,6 +46,8 @@ local function sync_appearance()
     end
 end
 
+-- A new machine may not have the shared cache yet; still load the theme.
+apply_appearance('dark')
 sync_appearance() -- pick up current appearance immediately on startup
 
 -- Background safety net: cheap enough (just a file read) to poll directly,

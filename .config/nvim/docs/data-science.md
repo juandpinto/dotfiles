@@ -1,6 +1,17 @@
 # Data science setup
 
-Neovim configuration for Python data science work with `# %%` cell-based files, using a separate IPython REPL in a tmux pane—similar to VSCode's Interactive Window.
+Neovim configuration for Python data science work with `# %%` cell-based files, using a separate IPython REPL in a tmux or Herdr pane—similar to VSCode's Interactive Window.
+
+The configuration is now shared between macOS and Omarchy/Asahi. See the
+[Linux overlay guide](../../../platforms/omarchy/README.md) for deployment,
+Kitty, appearance, and tested Linux-specific behavior. The Mac's existing
+WezTerm/Sixel fallback remains available; Kitty uses a newer rendering path.
+
+## Multiplexer selection
+
+The existing Mac/tmux/WezTerm paths remain available. An inner tmux takes priority; otherwise the editor selects the native Herdr adapter when running in a Herdr pane, then the existing WezTerm adapter. See [the Herdr trial guide](../../../platforms/omarchy/herdr-trial.md) for deployment and isolated tests.
+
+Under Herdr, `<leader>rr` creates a sibling IPython pane when needed or reuses an unambiguous target in the same tab. `:SlimeConfig` selects a target explicitly; `<leader>rf` focuses it and `<leader>tv` creates a same-directory split. The REPL remains server-owned and survives an editor restart. Stale/self/agent targets are rejected rather than guessed. Cells use explicit paste boundaries and protocol-aware Enter/control keys, preserving the existing quiet queued-input safeguards. Real Herdr/IPython tests cover queued multiline cells and interrupt recovery; plot resize/reattach acceptance is separate.
 
 ## Design decisions
 
@@ -16,8 +27,8 @@ Neovim configuration for Python data science work with `# %%` cell-based files, 
 
 **Tradeoffs vs iron.nvim:**
 
-- **No auto-start**—you must manually open a tmux pane and start IPython before sending code. iron.nvim opened and managed the REPL pane for you.
-- **No pane management from nvim**—toggling or focusing the REPL pane uses tmux bindings (`<prefix>+l` to switch to the last pane), not nvim keymaps (though `<leader>rf` wraps `tmux select-pane -l` as a convenience).
+- **Manual setup in tmux/WezTerm**—open a target pane before sending the IPython start command. The Herdr adapter can create a sibling on the explicit `<leader>rr` request; no backend starts a REPL merely by loading the editor.
+- **Minimal pane management**—the REPL is an independent terminal, not an editor-owned process. `<leader>rf` focuses it through the selected backend.
 - **Manual retargeting**—if your target pane changes (new window, re-layout), you need to run `:SlimeConfig` to update the target. iron.nvim tracked its own pane automatically.
 - **No visual send feedback**—iron.nvim highlighted the region being sent; vim-slime does not.
 
@@ -31,7 +42,7 @@ vim-slime's usual fix for this is `g:slime_python_ipython`, which wraps every mu
 
 ### uv workflow
 
-Vim-slime doesn't launch IPython—you do. `<leader>rr` is a convenience that sends the appropriate start command to the target pane, assuming a shell is already running there.
+`<leader>rr` sends the appropriate start command to the target pane. In tmux/WezTerm, a shell must already be there; Herdr can create a sibling when needed. The no-project Herdr path uses `uv run --no-project ipython --no-autoindent` when the personal IPython tool is installed, retaining its matplotlib/pandas dependencies instead of creating a bare uvx environment.
 
 | Context                                    | Command sent                        |
 |--------------------------------------------|-------------------------------------|
@@ -53,11 +64,12 @@ Matplotlib figures are displayed automatically after each cell via IPython's `po
 
 Rendering strategy by context:
 
-- **Inside tmux (our case)**—figures render **inline via sixel graphics**. Sixel is stored as part of tmux's screen state, so it renders at the correct cursor position and survives pane switches. Requires `img2sixel` and tmux built with sixel support (tmux 3.4+).
-- **Outside tmux (bare WezTerm pane)**—figures render **inline via the kitty graphics protocol**, which WezTerm supports natively. The startup script implements this directly without the `matplotlib-backend-kitty` package.
-- **`preview=True` or `<leader>ri`**—always opens in macOS Preview regardless of context.
+- **Kitty, including tmux**—`kitten icat` uses stream transfer and tmux passthrough, which implies Unicode placeholders. Images follow tmux's character grid rather than the old raw sender's absolute coordinates. No extra matplotlib backend package is required.
+- **Other terminals inside tmux (the existing Mac/WezTerm path)**—Sixel via `img2sixel`; falls back to the system image viewer if unavailable.
+- **Bare WezTerm**—the existing raw Kitty-protocol sender remains available.
+- **`preview=True` or `<leader>ri`**—opens macOS Preview or Linux's default image viewer regardless of context.
 
-> **Why sixel and not kitty in tmux?** The kitty graphics protocol places images using absolute screen coordinates relative to the terminal window's top-left corner. tmux panes are sub-regions of that window, so kitty images render at the wrong position (usually off-screen). Sixel images are stored as part of tmux's character-grid state and render inline at the cursor position—no coordinate transformation needed.
+> The old absolute-coordinate limitation explains the original Sixel workaround, not a limitation of all modern Kitty/tmux rendering. Unicode placeholders solve the positioning problem, but image payloads still belong to the GUI terminal: reattaching in a different terminal can require rerendering. On SSH hosts, install `kitten`, enable tmux passthrough, and use `NVIM_FIGURE_BACKEND=kitty` if terminal detection is unavailable.
 
 ### DataFrame display
 
@@ -68,7 +80,7 @@ DataFrames show as text in the REPL. For rich HTML tables, end a cell with the b
 `~/.ipython/profile_default/startup/00-nvim-helpers.py` is auto-loaded on every IPython session start. It provides:
 
 - **`show_html(obj)`**—opens any object with `_repr_html_()` in the browser as a styled HTML page. `show_html(_)` shows the last result.
-- **`show_fig(fig, dpi, preview)`**—displays a matplotlib figure inline (outside tmux) or in Preview (inside tmux). Pass `preview=True` to always use Preview.
+- **`show_fig(fig, dpi, preview)`**—displays a matplotlib figure inline in Kitty (also in tmux), uses the legacy WezTerm/Sixel fallback where appropriate, or opens the system viewer. Pass `preview=True` to force that viewer.
 - **`_auto_show_figures()`**—`post_execute` hook; auto-displays and closes all figures after each cell.
 - Sets matplotlib backend to `Agg`.
 
@@ -147,7 +159,7 @@ set -gq allow-passthrough all
 set -g visual-activity off
 ```
 
-`allow-passthrough all` is required for graphics protocol passthrough in any pane (e.g., image.nvim). Even with it enabled, matplotlib inline rendering falls back to Preview inside tmux due to the upstream limitation described above.
+`allow-passthrough all` is required for graphics protocol passthrough in any pane (e.g., image.nvim). Kitty's `kitten icat` uses this passthrough with Unicode placeholders for inline matplotlib output. The old WezTerm path continues using Sixel.
 
 ## New device setup
 

@@ -20,4 +20,13 @@ require('which-key').setup({
     },
 })
 
+-- Keep the Ctrl-W window map open for repeated resize/move/split commands.
+-- Escape leaves hydra mode; the ordinary Ctrl-W mappings are unchanged.
+vim.keymap.set(
+    'n',
+    '<C-w><Space>',
+    function() require('which-key').show({ keys = '<C-w>', loop = true }) end,
+    { desc = 'Window hydra (which-key)' }
+)
+
 -- vim: ts=2 sts=2 sw=2 et

@@ -20,6 +20,7 @@ matplotlib.use("Agg")  # non-interactive backend; rendering is handled manually 
 import matplotlib.pyplot as plt
 
 _IMG2SIXEL = shutil.which("img2sixel")  # resolved once at startup
+_KITTEN = shutil.which("kitten")
 
 
 # %%
@@ -31,15 +32,41 @@ def _open_in_preview(png_bytes: bytes) -> None:
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         f.write(png_bytes)
         tmp_path = f.name
-    subprocess.Popen(["open", "-a", "Preview", tmp_path])
+    command = ["open", "-a", "Preview"] if sys.platform == "darwin" else ["xdg-open"]
+    subprocess.Popen([*command, tmp_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _send_kitty_icat(png_bytes: bytes) -> bool:
+    """Modern Kitty renderer: Unicode placeholders track tmux's character grid.
+
+    Stream transfer also works over SSH when kitten is installed remotely;
+    unlike file/shared-memory transfer, the GUI need not see this filesystem.
+    Keep the existing WezTerm/Sixel path on Macs not using Kitty.
+    """
+    if _KITTEN is None or not (
+        os.environ.get("KITTY_PID")
+        or os.environ.get("TERM") == "xterm-kitty"
+        or os.environ.get("NVIM_FIGURE_BACKEND") == "kitty"
+    ):
+        return False
+    passthrough = "tmux" if _in_tmux() else "none"
+    try:
+        result = subprocess.run(
+            [_KITTEN, "icat", "--stdin=yes", "--transfer-mode=stream",
+             f"--passthrough={passthrough}", "--align=left"],
+            input=png_bytes, stderr=subprocess.PIPE, timeout=15,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def _send_kitty_image(png_bytes: bytes) -> None:
     """Transmit PNG bytes inline using the kitty graphics protocol.
 
-    Works in a bare WezTerm pane. Not used inside tmux—sixel is used there
-    instead, since tmux stores sixel as part of its screen state whereas kitty
-    graphics use absolute screen coordinates that are broken by pane offsets.
+    Legacy bare-WezTerm path. The modern Kitty path above uses icat and Unicode
+    placeholders instead, including inside tmux. Other tmux terminals retain
+    the Sixel fallback rather than using this absolute-coordinate sender.
     """
     encoded = base64.standard_b64encode(png_bytes).decode()
     chunks = [encoded[i : i + 4096] for i in range(0, len(encoded), 4096)]
@@ -62,7 +89,7 @@ def _send_sixel_image(png_bytes: bytes) -> None:
     Falls back to macOS Preview if img2sixel is not available.
     """
     if _IMG2SIXEL is None:
-        print("[show_fig] img2sixel not found; falling back to Preview. Install: brew install libsixel")
+        print("[show_fig] No compatible inline renderer; opening the system image viewer.")
         _open_in_preview(png_bytes)
         return
     proc = subprocess.run([_IMG2SIXEL, "-"], input=png_bytes, capture_output=True)
@@ -81,13 +108,13 @@ def show_fig(fig=None, dpi: int = 150, preview: bool = False) -> None:
     Args:
         fig: Figure to display. Defaults to the current active figure.
         dpi: Resolution for the rendered image.
-        preview: If True, always open in macOS Preview regardless of context.
+        preview: If True, always open in the system image viewer.
 
     Rendering strategy by context:
-    - Inside tmux: sixel graphics (inline, survives pane switches). Requires
-      img2sixel and tmux sixel support. Falls back to Preview if unavailable.
-    - Outside tmux (bare WezTerm pane): kitty graphics protocol (inline).
-    - preview=True: always open in macOS Preview.
+    - Kitty, including tmux: kitten icat with Unicode placeholders/passthrough.
+    - Other terminals inside tmux: existing Sixel path, else system image viewer.
+    - Bare WezTerm: existing raw Kitty protocol path.
+    - preview=True: macOS Preview or Linux's default image viewer.
     """
     if fig is None:
         fig = plt.gcf()
@@ -99,10 +126,14 @@ def show_fig(fig=None, dpi: int = 150, preview: bool = False) -> None:
 
     if preview:
         _open_in_preview(png_bytes)
+    elif _send_kitty_icat(png_bytes):
+        pass
     elif _in_tmux():
         _send_sixel_image(png_bytes)
-    else:
+    elif os.environ.get("TERM_PROGRAM") == "WezTerm" or os.environ.get("WEZTERM_PANE"):
         _send_kitty_image(png_bytes)
+    else:
+        _open_in_preview(png_bytes)
 
 
 # %%
