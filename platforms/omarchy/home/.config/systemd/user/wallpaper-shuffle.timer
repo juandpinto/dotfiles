@@ -1,0 +1,11 @@
+[Unit]
+Description=Shuffle personal wallpapers every minute during the desktop session
+PartOf=graphical-session.target
+
+[Timer]
+OnActiveSec=1s
+OnUnitActiveSec=1min
+AccuracySec=1s
+
+[Install]
+WantedBy=graphical-session.target

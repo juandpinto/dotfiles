@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Pick a different image without replacing Omarchy's native background renderer.
+set -euo pipefail
+directory=${1:-$HOME/Documents/backgrounds}
+[[ -d $directory ]] || exit 0
+
+mapfile -d '' -t images < <(
+    fd --hidden --no-ignore --ignore-case --max-depth 1 --type f --print0 \
+        --extension jpg --extension jpeg --extension png --extension gif \
+        --extension bmp --extension webp . "$directory"
+)
+if (( ${#images[@]} == 0 )); then
+    printf 'No supported images in %s\n' "$directory" >&2
+    exit 0
+fi
+
+current=$(readlink -f -- "$HOME/.local/state/omarchy/current/background" 2>/dev/null || true)
+candidates=()
+for image in "${images[@]}"; do
+    [[ $image == "$current" ]] || candidates+=("$image")
+done
+# A single already-selected image needs no redraw.
+(( ${#candidates[@]} )) || exit 0
+IFS= read -r -d '' selected < <(printf '%s\0' "${candidates[@]}" | shuf --zero-terminated --head-count=1)
+exec omarchy theme bg set "$selected"

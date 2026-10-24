@@ -1,0 +1,9 @@
+[Unit]
+Description=Choose a random personal wallpaper using Omarchy
+PartOf=graphical-session.target
+ConditionPathIsDirectory=%h/Documents/backgrounds
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/wallpaper-shuffle
+TimeoutStartSec=15

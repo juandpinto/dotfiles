@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "palette": {},
+  "providers": {
+    "applications": {
+      "enabled": true
+    },
+    "codex": {
+      "enabled": false
+    },
+    "ai": {
+      "autoSend": false,
+      "mode": "desktop"
+    },
+    "browser-search": {
+      "enabled": false,
+      "prefix": "browser"
+    },
+    "brave-search": {
+      "enabled": true,
+      "prefix": "s"
+    },
+    "timer": {
+      "enabled": true
+    }
+  }
+}

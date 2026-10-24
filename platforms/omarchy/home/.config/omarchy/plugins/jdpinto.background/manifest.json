@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "jdpinto.background",
+  "name": "Background (crossfade)",
+  "version": "1.0.0",
+  "author": "Omarchy",
+  "description": "Native Omarchy background renderer with a gentle 1-second crossfade instead of a diagonal reveal",
+  "kinds": [
+    "service"
+  ],
+  "entryPoints": {
+    "service": "Background.qml"
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.background"
+  }
+}

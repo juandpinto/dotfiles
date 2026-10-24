@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Open Slack as an Omarchy web app, translating slack:// deep links to the web client.
+# Slack's sign-in flow ends by firing slack:// to launch its desktop app, which has no
+# Linux arm64 build; with nothing registered for the scheme, Brave hands it to xdg-open
+# and an "Open with" chooser appears. This mirrors omarchy-webapp-handler-zoom and is
+# installed as both launcher and x-scheme-handler/slack via `omarchy webapp install`.
+set -euo pipefail
+url=${1:-}
+web_url="https://app.slack.com/client"
+
+if [[ $url == slack://* ]]; then
+    team="" id=""
+    # slack://T0123/magic-login/... (post-sign-in) or slack://open?team=T0123&id=C0456
+    [[ $url =~ ^slack://(T[A-Z0-9]+) ]] && team=${BASH_REMATCH[1]}
+    [[ $url =~ [?\&]team=(T[A-Z0-9]+) ]] && team=${BASH_REMATCH[1]}
+    [[ $url =~ [?\&]id=([CDGU][A-Z0-9]+) ]] && id=${BASH_REMATCH[1]}
+    if [[ -n $team ]]; then
+        web_url+="/$team"
+        [[ -n $id ]] && web_url+="/$id"
+    fi
+fi
+
+exec omarchy-launch-webapp "$web_url"

@@ -1,0 +1,19 @@
+{
+  "name": "Brave web search",
+  "version": "1.0.0",
+  "author": "Juan Pinto",
+  "description": "Search the web with Brave Search in the default browser",
+  "apiVersion": 1,
+  "icon": "󰖟",
+  "color": "#7fbbb3",
+  "license": "MIT",
+  "entry": "Service.qml",
+  "commands": [{
+    "id": "search",
+    "prefix": "s",
+    "title": "Search Brave",
+    "summary": "Open a Brave Search query in the default browser",
+    "args": [{ "name": "query", "hint": "what to search the web for", "rest": true }],
+    "examples": ["s python dataframe examples", "s Asahi Linux"]
+  }]
+}
