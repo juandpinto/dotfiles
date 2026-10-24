@@ -56,6 +56,9 @@ if _in_tmux then
     vim.g.slime_target = 'tmux'
     vim.g.slime_default_config =
         { socket_name = 'default', target_pane = '{last}' }
+elseif require('juan.herdr').active() then
+    vim.g.slime_target = 'herdr'
+    vim.g.slime_default_config = { pane_id = '' }
 elseif _in_wezterm then
     vim.g.slime_target = 'wezterm'
     vim.g.slime_default_config = { pane_id = find_wezterm_target_pane() }
@@ -252,13 +255,24 @@ vim.api.nvim_create_user_command('StartIPython', function()
         local in_project = vim.fn.findfile('pyproject.toml', '.;') ~= ''
         if in_project then
             cmd = 'uv run ipython --no-autoindent\n'
+        elseif
+            require('juan.herdr').active()
+            and vim.fn.executable('ipython') == 1
+        then
+            -- Use the installed personal tool environment (matplotlib/pandas),
+            -- not a fresh bare uvx environment that lacks the startup dependencies.
+            cmd = 'uv run --no-project ipython --no-autoindent\n'
         else
             cmd = 'uvx ipython --no-autoindent\n'
         end
     else
         cmd = 'ipython --no-autoindent\n'
     end
-    vim.fn['slime#send'](cmd)
+    if require('juan.herdr').active() then
+        require('juan.herdr').start_repl(cmd)
+    else
+        vim.fn['slime#send'](cmd)
+    end
 end, {})
 
 -- =========================================
@@ -293,6 +307,9 @@ vim.keymap.set(
 vim.keymap.set('n', '<leader>rf', function()
     if _in_tmux then
         vim.fn.system('tmux select-pane -l')
+    elseif require('juan.herdr').active() then
+        local herdr = require('juan.herdr')
+        herdr.focus(herdr.target(vim.b.slime_config))
     elseif _in_wezterm then
         local cfg = vim.b.slime_config or vim.g.slime_default_config or {}
         local pane_id = cfg.pane_id or '1'

@@ -1,0 +1,122 @@
+onboarding = false
+# Native tmux command keys layered over Herdr defaults.
+# tmux session -> herdr workspace, tmux window -> herdr tab, tmux pane -> herdr pane
+
+[theme]
+# Text, accent, and status colors follow Kitty's ANSI Everforest palette. The
+# 16-color palette has no intermediate background shades, though: the built-in
+# terminal theme leaves the navigate cursor and focused menu items without any
+# background. Override those surfaces with the Everforest shades from the Pi themes.
+name = "terminal"
+# Choose dark/light overrides from Kitty's background; unknown defaults to dark.
+auto_switch = true
+dark_name = "terminal"
+light_name = "terminal"
+
+[theme.custom.dark]
+# Tab bar and modals sit slightly below the terminal background. The active tab
+# draws panel_bg text on the blue accent.
+panel_bg = "#232a2e"     # bg_dim
+active_row_bg = "#3d484d" # bg2: active workspace and agent rows
+selection_bg = "#4f585e"  # bg4: navigate cursor, distinct from the active row
+surface0 = "#475258"      # bg3: focused menu items
+surface1 = "#4f585e"      # bg4: hover and dragged rows
+surface_dim = "#7a8478"   # grey0: dividers and scrollbar tracks
+overlay0 = "#7a8478"      # grey0: muted text
+overlay1 = "#859289"      # grey1
+subtext0 = "#9da9a0"      # grey2
+mauve = "#d699b6"         # purple: branch labels
+peach = "#e69875"         # orange: interrupted states (ANSI has no orange)
+
+[theme.custom.light]
+# bg_dim text fails contrast on light blue, so the tab bar keeps the terminal background.
+panel_bg = "#fdf6e3"      # bg0
+active_row_bg = "#efebd4" # bg2
+selection_bg = "#e0dcc7"  # bg4
+surface0 = "#e6e2cc"      # bg3
+surface1 = "#e0dcc7"      # bg4
+surface_dim = "#a6b0a0"   # grey0
+overlay0 = "#a6b0a0"      # grey0
+overlay1 = "#939f91"      # grey1
+subtext0 = "#829181"      # grey2
+mauve = "#df69ba"         # purple
+peach = "#f57d26"         # orange
+
+[terminal]
+# Matches -c "#{pane_current_path}" on every split, window, and session
+new_cwd = "follow"
+
+[keys]
+# Unlisted actions inherit Herdr defaults; no prefix-free application shortcuts.
+prefix = "ctrl+b"
+detach = "prefix+d"
+
+# tmux splits, retaining Herdr's v / - aliases (right / down).
+split_vertical = ["prefix+percent", "prefix+v"]
+split_horizontal = ["prefix+double_quote", "prefix+minus"]
+
+# tmux directional focus, plus Herdr's Vim-style aliases.
+focus_pane_left = ["prefix+left", "prefix+h"]
+focus_pane_down = ["prefix+down", "prefix+j"]
+focus_pane_up = ["prefix+up", "prefix+k"]
+focus_pane_right = ["prefix+right", "prefix+l"]
+cycle_pane_next = ["prefix+o", "prefix+tab"]
+# Unlike tmux's last-pane, Herdr can return across tabs and workspaces.
+last_pane = "prefix+semicolon"
+
+# Resize directly after the prefix; Herdr's prefix+r resize mode remains available.
+resize_pane_left = "prefix+ctrl+left"
+resize_pane_down = "prefix+ctrl+down"
+resize_pane_up = "prefix+ctrl+up"
+resize_pane_right = "prefix+ctrl+right"
+
+# tmux window operations. T names a pane in tmux, so do not retain it for tabs.
+rename_tab = "prefix+comma"
+close_tab = ["prefix+ampersand", "prefix+shift+x"]
+rename_pane = ["prefix+shift+t", "prefix+shift+p"]
+
+# tmux session operations mapped to Herdr workspaces, retaining harmless aliases.
+workspace_picker = ["prefix+s", "prefix+w"]
+rename_workspace = ["prefix+$", "prefix+shift+w"]
+previous_workspace = "prefix+("
+next_workspace = "prefix+)"
+
+# Preserve Herdr actions displaced by tmux's s (picker) and o (cycle pane).
+settings = "prefix+shift+s"
+open_notification_target = "prefix+shift+o"
+
+# Other Herdr defaults include ? help, [ copy mode, x close pane, z zoom,
+# c / n / p / 1..9 tabs, N new workspace, D close workspace, G new worktree,
+# g session navigator, b sidebar, e edit scrollback, R reload, and H/J/K/L pane swaps.
+
+[ui]
+accent = "blue"
+
+# tmux drew single-line dividers between adjacent panes and no outer frame
+pane_gaps = false
+pane_outer_borders = false
+
+# tmux had no scrollbar column beside its panes
+pane_scrollbars = false
+
+# kill-window and kill-session never asked
+confirm_close = false
+
+# automatic-rename gave windows a name without prompting
+prompt_new_tab_name = false
+
+# set -g mouse on
+mouse_capture = true
+
+# status-right had the zoom flag followed by #h
+tab_bar_right = [{ type = "zoom" }, { type = "hostname" }]
+
+# set -g set-titles on / set -g set-titles-string '#h:#W', where tmux's #W was
+# the basename of the pane cwd. This is what Hyprland shows in the group bar,
+# and it resolves on the server so remote sessions name the remote host.
+window_title = "{hostname}: {workspace} · {tab}"
+
+# Keep project/tab identity stable; display Pi's changing conversation title here.
+status_indicators = "symbols"
+[ui.sidebar.agents.rows_by_agent]
+pi = [["state_icon", "agent", "state_text"], ["terminal_title_stripped"], ["workspace", "tab"]]

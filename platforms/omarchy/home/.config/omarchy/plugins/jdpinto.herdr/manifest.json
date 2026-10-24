@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "jdpinto.herdr",
+  "name": "Herdr (default terminal)",
+  "version": "1.0.0",
+  "author": "jdpinto",
+  "description": "Thin wrapper around the installed Herdr widget; open sessions through xdg-terminal-exec",
+  "kinds": ["bar-widget"],
+  "entryPoints": {"barWidget": "Panel.qml"},
+  "barWidget": {
+    "displayName": "Herdr",
+    "category": "Apps",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  },
+  "omarchy": {"clonedFrom": "jankeesvw.herdr"}
+}
