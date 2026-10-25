@@ -1,0 +1,26 @@
+id = "lastfocus"
+name = "Last focus"
+version = "0.1.0"
+min_herdr_version = "0.7.5"
+description = "tmux-style last pane / last tab / last workspace toggles"
+platforms = ["linux", "macos"]
+
+# One recorder per Herdr server. Herdr runs this after the session is restored
+# and again after a live handoff; the daemon exits when the server's socket goes.
+[[startup]]
+command = ["python3", "-B", "lastfocus.py", "daemon", "--ensure"]
+
+[[actions]]
+id = "last-pane"
+title = "Last pane in this tab"
+command = ["python3", "-B", "lastfocus.py", "last-pane"]
+
+[[actions]]
+id = "last-tab"
+title = "Last tab in this workspace"
+command = ["python3", "-B", "lastfocus.py", "last-tab"]
+
+[[actions]]
+id = "last-workspace"
+title = "Last workspace"
+command = ["python3", "-B", "lastfocus.py", "last-workspace"]

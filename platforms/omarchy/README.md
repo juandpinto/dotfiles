@@ -82,7 +82,7 @@ not key tables. No running user server was killed during configuration.
 
 ## Herdr trial
 
-Herdr now has an official managed Pi hook, Pi conversation titles in the sidebar, a thin default-terminal wrapper for the upstream bar widget, and shared Neovim Slime/Sidekick adapters. Inner tmux keeps priority, preserving the Mac workflow. Herdr processes remain independent of the editor; only its config file is linked, never runtime state. See [Herdr trial and desktop integration](herdr-trial.md) for controls, verification, startup/reload requirements and rollback boundaries.
+Herdr now has an official managed Pi hook, Pi conversation titles in the sidebar, a thin default-terminal wrapper for the upstream bar widget, and shared Neovim Slime/Sidekick adapters. Inner tmux keeps priority, preserving the Mac workflow. Herdr processes remain independent of the editor; only its config file is linked, never runtime state. The config and the `lastfocus` plugin (tmux's `prefix+;`, `prefix+l`, `prefix+L`) are shared with the Mac from `.config/herdr/`; see [its README](../../.config/herdr/lastfocus/README.md). See [Herdr trial and desktop integration](herdr-trial.md) for controls, verification, startup/reload requirements and rollback boundaries.
 
 ## Kitty and data science
 
