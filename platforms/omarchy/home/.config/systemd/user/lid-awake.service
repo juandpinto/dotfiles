@@ -1,0 +1,11 @@
+[Unit]
+Description=Lid awake: keep running with the lid closed, guarded by battery and heat
+PartOf=graphical-session.target
+After=graphical-session.target
+
+# No [Install] section: started only by `lid-awake on`, so every boot starts off.
+[Service]
+Type=simple
+ExecStart=/usr/bin/systemd-inhibit --what=handle-lid-switch --mode=block --who=lid-awake "--why=Lid awake is on" %h/.local/bin/lid-awake watch
+Restart=on-failure
+RestartSec=5

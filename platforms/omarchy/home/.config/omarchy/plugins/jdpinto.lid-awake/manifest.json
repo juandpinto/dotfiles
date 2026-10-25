@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "jdpinto.lid-awake",
+  "name": "Lid awake",
+  "version": "1.0.0",
+  "author": "jdpinto",
+  "description": "Shows while lid-awake keeps the laptop running with the lid closed; click to turn it off",
+  "kinds": ["bar-widget"],
+  "entryPoints": {"barWidget": "Widget.qml"},
+  "barWidget": {
+    "displayName": "Lid awake",
+    "category": "Status",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

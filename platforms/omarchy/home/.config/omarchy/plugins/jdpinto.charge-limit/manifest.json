@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "jdpinto.charge-limit",
+  "name": "Charge limit",
+  "version": "1.0.0",
+  "author": "jdpinto",
+  "description": "Shows while the battery charge limit is below 100%; click to set it back to 100%",
+  "kinds": ["bar-widget"],
+  "entryPoints": {"barWidget": "Widget.qml"},
+  "barWidget": {
+    "displayName": "Charge limit",
+    "category": "Status",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

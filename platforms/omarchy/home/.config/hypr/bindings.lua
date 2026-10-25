@@ -91,3 +91,7 @@ o.bind("SUPER + SHIFT + ALT + E", "New email", "omarchy-shell shell summon omama
 -- <<< omamail default mail client
 
  o.bind("SUPER + SHIFT + T", "Todoist", { webapp = "https://app.todoist.com", focus = true })
+
+-- Keep running with the lid closed; pairs with Stay Awake on SUPER + CTRL + I.
+o.bind("SUPER + CTRL + SHIFT + I", "Toggle lid awake",
+    os.getenv("HOME") .. "/.local/bin/lid-awake toggle")

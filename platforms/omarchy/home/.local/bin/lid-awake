@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Keep the laptop running with the lid closed, guarded by battery level and heat.
+# Usage: lid-awake [on|off|toggle|status]
+# The lid-awake user service runs `lid-awake watch` under a lid-switch inhibitor.
+# It has no [Install] section, so every boot starts with lid-awake off.
+set -euo pipefail
+
+unit=lid-awake.service
+min_battery=${LID_AWAKE_MIN_BATTERY:-20} # percent; applies only on battery power
+max_temp=${LID_AWAKE_MAX_TEMP:-45}       # degrees C, battery temperature
+interval=${LID_AWAKE_INTERVAL:-30}       # seconds between checks
+grace=${LID_AWAKE_GRACE:-60}             # seconds before rechecking after a suspend
+power_supply=${LID_AWAKE_POWER_SUPPLY:-/sys/class/power_supply}
+
+log() { printf '%s\n' "$*"; }
+
+logind_true() {
+    [[ $(busctl get-property org.freedesktop.login1 /org/freedesktop/login1 \
+        org.freedesktop.login1.Manager "$1") == 'b true' ]]
+}
+
+# Closed and not docked: the state in which logind would otherwise suspend.
+closed_undocked() { logind_true LidClosed && ! logind_true Docked; }
+
+read_power() {
+    local dir type
+    battery='' on_ac=0
+    for dir in "$power_supply"/*; do
+        [[ -r $dir/type ]] || continue
+        type=$(<"$dir/type")
+        if [[ $type == Battery && -z $battery ]]; then
+            battery=$dir
+        elif [[ $type == Mains && -r $dir/online && $(<"$dir/online") == 1 ]]; then
+            on_ac=1
+        fi
+    done
+    [[ -n $battery ]] || { log 'No battery found'; return 1; }
+    capacity=$(<"$battery/capacity")
+    temp=$(<"$battery/temp") # tenths of a degree C
+}
+
+degrees() { printf '%d.%d °C' $(($1 / 10)) $(($1 % 10)); }
+
+# Prints why the laptop should suspend now; prints nothing otherwise.
+suspend_reason() {
+    if ((temp >= max_temp * 10)); then
+        printf 'battery at %s (limit %s °C)' "$(degrees "$temp")" "$max_temp"
+    elif ((!on_ac && capacity <= min_battery)); then
+        printf 'battery at %s%% on battery power (limit %s%%)' "$capacity" "$min_battery"
+    fi
+}
+
+describe() {
+    printf 'battery %s%%, %s, %s' "$capacity" "$(degrees "$temp")" \
+        "$( ((on_ac)) && echo 'on AC' || echo 'on battery')"
+}
+
+watch() {
+    local closed=0 hottest=0 reason
+    log "Watching: suspend when closed at ${min_battery}% on battery or ${max_temp} °C"
+    while :; do
+        read_power
+        if closed_undocked; then
+            if ((!closed)); then
+                closed=1 hottest=$temp
+                log "Lid closed: $(describe)"
+                # Omarchy locks on its own lid event, but not when the lid was
+                # already closed and an external monitor is then unplugged.
+                if [[ $(omarchy-shell lock isLocked 2>/dev/null) != true ]]; then
+                    omarchy-system-lock || log 'Lock failed'
+                fi
+            fi
+            ((temp > hottest)) && hottest=$temp
+            reason=$(suspend_reason)
+            if [[ -n $reason ]]; then
+                log "Suspending: $reason"
+                systemctl suspend || log 'Suspend failed'
+                sleep "$grace"
+                continue
+            fi
+        elif ((closed)); then
+            closed=0
+            log "Lid opened: $(describe); hottest while closed $(degrees "$hottest")"
+        fi
+        sleep "$interval"
+    done
+}
+
+is_on() { systemctl --user is-active --quiet "$unit"; }
+
+refresh_bar() { omarchy-shell jdpinto.lid-awake refresh >/dev/null 2>&1 || true; }
+
+notify() { omarchy-notification-send -g 󰌢 "$@" >/dev/null 2>&1 || true; }
+
+turn_on() {
+    systemctl --user start "$unit"
+    refresh_bar
+    notify 'Lid awake on' "Keeps running when closed; suspends at ${min_battery}% on battery or ${max_temp} °C"
+}
+
+turn_off() {
+    systemctl --user stop "$unit"
+    refresh_bar
+    notify 'Lid awake off' 'Closing the lid suspends again'
+}
+
+status() {
+    local state=off lid=open
+    is_on && state=on
+    logind_true LidClosed && lid=closed
+    logind_true Docked && lid+=', docked'
+    read_power
+    printf 'Lid awake: %s\nLid: %s; %s\n' "$state" "$lid" "$(describe)"
+    printf 'When closed, suspends at %s%% on battery or %s °C.\n' "$min_battery" "$max_temp"
+}
+
+case ${1:-status} in
+    on) turn_on ;;
+    off) turn_off ;;
+    toggle) if is_on; then turn_off; else turn_on; fi ;;
+    status) status ;;
+    watch) watch ;;
+    *)
+        printf 'Usage: lid-awake [on|off|toggle|status]\n' >&2
+        exit 2
+        ;;
+esac
