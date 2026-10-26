@@ -159,6 +159,13 @@ _fzf_comprun() {
 
 source ~/.config/zsh/plugins/fzf-git.sh/fzf-git.sh
 
+# ---- fzf-git worktree switcher ----
+gswt() {
+	local worktree
+	worktree="$(_fzf_git_worktrees --no-multi)" || return
+	[ -n "$worktree" ] && builtin cd -- "$worktree"
+}
+
 # ---- Yazi wrapper function to change the current working directory after running yazi ----
 function y() {
 	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
