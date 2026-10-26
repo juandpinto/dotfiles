@@ -146,3 +146,6 @@ window_title = "{hostname}: {workspace} · {tab}"
 status_indicators = "symbols"
 [ui.sidebar.agents.rows_by_agent]
 pi = [["state_icon", "agent", "state_text"], ["terminal_title_stripped"], ["workspace", "tab"]]
+
+[ui.toast]
+delivery = "system"

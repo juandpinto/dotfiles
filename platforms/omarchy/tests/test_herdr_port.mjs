@@ -81,7 +81,8 @@ await new Promise(r=>receiver.listen(hookSocket,r));
 const saved={...process.env};
 try{
  Object.assign(process.env,{HERDR_ENV:'1',HERDR_SOCKET_PATH:hookSocket,HERDR_PANE_ID:'test:p1'});
- const factory=(await import(pathToFileURL(join(realHome,'.pi/agent/extensions/herdr-agent-state.ts')).href)).default;
+ const agentDir=process.env.PI_CODING_AGENT_DIR || join(realHome,'.pi/agent');
+ const factory=(await import(pathToFileURL(join(agentDir,'extensions/herdr-agent-state.ts')).href)).default;
  const events=new Map(),bus=new Map();
  factory({on:(name,fn)=>events.set(name,fn),events:{on:(name,fn)=>bus.set(name,fn)}});
  let idle=true;

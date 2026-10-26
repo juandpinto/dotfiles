@@ -6,7 +6,7 @@ Linux uses Herdr as a trial while retaining tmux. Shared Neovim changes preserve
 
 Install the official managed hook with `herdr integration install pi`. Herdr owns `~/.pi/agent/extensions/herdr-agent-state.ts`; it is not an authored dotfiles link. It reports working/settled lifecycle and resumable conversation references over a local socket. Explicit blocked states require cooperating extensions; screen detection remains relevant for custom approval dialogs. Existing Pi sessions need `/reload`; fresh sessions discover the hook automatically.
 
-Only `~/.config/herdr/config.toml` is linked into this overlay. Pi-specific sidebar rows show agent/state, the existing terminal title, and workspace/tab identity. Herdr sockets, logs, session layouts, histories, and credentials stay local. The host terminal title includes the active tab. No automatic tab-renaming hook is introduced.
+Only `~/.config/herdr/config.toml` is linked, from the shared `.config/herdr/config.toml` source used by both Mac and Linux. The old overlay source path remains a compatibility symlink so existing Linux links keep working until `link.sh` is rerun. Pi-specific sidebar rows show agent/state, the existing terminal title, and workspace/tab identity. Herdr sockets, logs, session layouts, histories, and credentials stay local. The host terminal title includes the active tab. No automatic tab-renaming hook is introduced.
 
 ## Neovim and persistent processes
 

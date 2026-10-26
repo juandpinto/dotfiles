@@ -139,7 +139,7 @@ alt-shift-8 = ['move-node-to-workspace 8', 'workspace 8']
 alt-shift-9 = ['move-node-to-workspace 9', 'workspace 9']
 
 # Shortcuts for specific applications
-alt-cmd-ctrl-t = 'exec-and-forget open -a WezTerm'
+alt-cmd-ctrl-t = 'exec-and-forget open -a kitty'
 alt-cmd-ctrl-a = 'exec-and-forget open -a Activity\ Monitor'
 alt-cmd-ctrl-v = 'exec-and-forget open -a Visual\ Studio\ Code'
 alt-cmd-ctrl-o = 'exec-and-forget open -a Microsoft\ Outlook'

@@ -24,7 +24,8 @@ Herdr starts the recorder when its server starts. After the first `plugin link` 
 
 ```sh
 cd ~/.dotfiles/.config/herdr/lastfocus && HERDR_SOCKET_PATH=~/.config/herdr/herdr.sock \
-    HERDR_PLUGIN_STATE_DIR=~/.local/state/herdr/plugins/lastfocus python3 -B lastfocus.py daemon --ensure
+    HERDR_PLUGIN_STATE_DIR=~/.local/state/herdr/plugins/lastfocus \
+    uv run --offline --no-project --python python3 lastfocus.py daemon --ensure
 ```
 
 On Linux, `platforms/omarchy/link.sh` links `../config.toml` into `~/.config/herdr/`. On macOS, Stow links it, along with this directory, into the real `~/.config/herdr/` that Herdr created on first run. Run `herdr` once before stowing on a fresh Mac so that directory exists; otherwise Stow would turn `~/.config/herdr` itself into a symlink into the repo and Herdr's sockets and logs would land here. `.gitignore` guards against that too.

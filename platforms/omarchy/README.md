@@ -8,7 +8,7 @@ the migration.
 
 ## What is linked
 
-- Shared: `.config/nvim`, `.config/shell`, `.config/stylua`, `.config/ruff`, `.markdownlint.jsonc`, and the explicitly tracked IPython config/startup files (never its runtime dir).
+- Shared: `.config/nvim`, `.config/shell`, `.config/stylua`, `.config/ruff`, `.config/herdr/config.toml`, `.markdownlint.jsonc`, and the explicitly tracked IPython config/startup files (never its runtime dir).
 - Linux-only: the files below `platforms/omarchy/home/`, selectively linked by
   `link.sh`.
 - Private: the four mail account configs (`aerc/accounts.conf`, `isyncrc`, `msmtp/config`, `notmuch/default/config`) carry email addresses and logins, so they live in the private companion repo at `~/.dotfiles-private` (override with `DOTFILES_PRIVATE_DIR`), laid out as `omarchy/home/...` exactly like this overlay. `link.sh` links them when that repo is present and skips them otherwise. The public `.gitignore` blocks those paths so they cannot be re-added here by accident.
