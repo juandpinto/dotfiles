@@ -61,6 +61,20 @@ alias copilot=/opt/homebrew/bin/copilot
 alias opencode="opencode --port"
 alias lg="lazygit"
 
+# ---- JiraTUI (Everforest) ----
+# JiraTUI only exposes Textual's built-in themes. The wrapper registers the
+# tracked Everforest themes before handing control to the uv-installed app.
+jiratui() {
+  local executable python
+  executable="$(whence -p jiratui)"
+  if [[ -z "$executable" || ! -r "$executable" ]]; then
+    print -u2 "jiratui is not installed"
+    return 127
+  fi
+  python="$(head -n 1 "$executable" | sed 's/^#!//')"
+  "$python" "$HOME/.config/jiratui/launcher.py" "$@"
+}
+
 # ---- nvm ----
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm

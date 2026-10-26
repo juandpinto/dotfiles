@@ -1,0 +1,12 @@
+jira_api_base_url: https://mcgrawhill.atlassian.net
+jira_api_version: 3
+cloud: true
+use_bearer_authentication: false
+use_cert_authentication: false
+theme: everforest-dark
+ssl:
+  verify_ssl: true
+  ca_bundle: null
+  certificate_file: null
+  key_file: null
+  password: null

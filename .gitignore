@@ -5,6 +5,7 @@
 .config/pi/agent/sessions/
 .config/pi/agent/npm/
 .config/pi/agent/git/
+.config/jiratui/secrets.env
 __pycache__/
 .ruff_cache/
 # Herdr's runtime directory is ~/.config/herdr. Only config.toml and the

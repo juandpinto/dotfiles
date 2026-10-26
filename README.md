@@ -75,6 +75,20 @@ readlink ~/.config/pi/agent/npm   # prints nothing once fixed
 readlink ~/.config/pi/agent/git   # prints nothing once fixed
 ```
 
+## JiraTUI
+
+Install with `uv tool install jiratui`, then open a new zsh shell (or run `source ~/.zshrc`). The `jiratui` wrapper uses that tool's Python environment to register our Everforest themes before starting the upstream CLI. Run `jiratui ui`; the theme follows `~/.cache/appearance`, while an explicit `--theme` or a non-Everforest config preference disables automatic following.
+
+Keep credentials only in `~/.config/jiratui/secrets.env` with mode `0600`, never in `config.yaml`. The launcher loads that file without overriding exported environment variables; the repository ignores it. The tracked config contains the Jira server URL but no credentials.
+
+Run the isolated wrapper tests using the installed tool environment:
+
+```bash
+uv run --offline --no-project --python ~/.local/share/uv/tools/jiratui/bin/python \
+    ~/.local/share/uv/tools/jiratui/bin/python -m unittest discover \
+    -s tests -p test_jiratui_launcher.py -v
+```
+
 ## Other first-launch steps
 
 - **Neovim**: uses the built-in `vim.pack` plugin manager; plugins install automatically the first time you launch `nvim`.
