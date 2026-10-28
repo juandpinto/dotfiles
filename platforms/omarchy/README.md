@@ -164,9 +164,17 @@ The helper and systemd units live in this Linux overlay; the Mac setup is unchan
 
 For a subtle 1-second crossfade instead of the stock diagonal reveal, the user-owned `jdpinto.background` clone lives under `home/.config/omarchy/plugins/` and is linked as a complete directory. Activate it with `omarchy plugin enable jdpinto.background`; the current shell's cached QML may require `omarchy restart shell` after approval to apply code changes reliably. Disable the clone with `omarchy plugin disable jdpinto.background` to restore the stock renderer. See the clone's README for provenance and update caveats; no package-owned file is patched.
 
-## Logo
+## Logo and screensaver
 
 Our jdp monogram replaces Omarchy's logo in fastfetch and the About window (`home/.config/omarchy/branding/about.txt`) and as the bar's menu button (see [bar.md](bar.md)). It is j, d and p sharing one stem and one bowl: the j's stem is the p's, the p's bowl is the d's, and the d's own stem stands to the right. It leans 12°, the d's tip and the j's hook are cut at 45°, and the p is the theme's green. The bar module's two paths are the source drawing; `tests/rasterize-mark.mjs` turns them into the block text. Favicon tiles made from the same paths (cream with the p in Everforest light's green for light pages, dark with the green p for dark ones, and one SVG that switches with `prefers-color-scheme`) are in `~/Documents/logo-drafts/final/`, outside Git.
+
+The screensaver animates it. An Omarchy (`ttfx`) effect assembles the monogram. The monogram splits into j, d and p while i, n, t and o slide out from behind the p. A rainbow of the bar's seven workspace colors washes across the seven letters of "jdpinto" and back. Another random effect rebuilds the word, and it folds back into the monogram. The effects receive our frames as colored text (`--existing-color-handling always`), so each one ends exactly where our next frame starts. Colors come from the current theme.
+
+Omarchy has no setting for the screensaver program. Its launcher runs `kitty -e omarchy-screensaver`, and Hyprland puts Omarchy's own `bin` first in `PATH`, so a copy in `~/.local/bin` is never found. Kitty searches `exe_search_path` before `PATH` for programs it starts by name, so `kitty.conf` points it at `home/.config/kitty/exe-overrides/`, which holds only our `omarchy-screensaver`. It keeps the stock script's contract: black background, hidden cursor, and a key or lost focus ends it and closes every screensaver window. It does not follow upstream changes to the stock script, and it only applies while Kitty is the default terminal. To return to the stock screensaver, remove the `exe_search_path` line; the next screensaver picks that up.
+
+Like the stock screensaver, it exits when it loses focus. Because Omarchy enables Hyprland's `focus_on_activate`, a terminal that requests attention (for example, an agent session sending a notification) takes focus and ends it.
+
+`omarchy-screensaver --preview` runs the animation in any terminal, and any key exits. Run `bash platforms/omarchy/tests/test_screensaver.sh` for isolated checks that take about a minute: the letters carry the bar monogram's geometry, and in a private tmux server every stage lands exactly on our frames.
 
 ## File manager
 

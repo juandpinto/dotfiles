@@ -1,0 +1,278 @@
+#!/bin/bash
+# jdpinto screensaver. Overrides Omarchy's omarchy-screensaver: Omarchy's
+# launcher runs `kitty -e omarchy-screensaver`, and kitty.conf's
+# exe_search_path finds this copy first. Keeps the stock contract: black
+# background, hidden cursor, any key or losing focus ends it and closes every
+# screensaver window.
+#
+# One cycle: an Omarchy (ttfx) effect assembles the jdp monogram in our colours,
+# the monogram splits into j, d and p while i, n, t and o slide out from
+# behind the p, a rainbow (the bar's seven workspace colours, one per letter)
+# washes across and back, another random effect rebuilds the word, and it
+# folds back into the monogram. Effects end exactly where our frames start because
+# ttfx is fed our frames as coloured text (--existing-color-handling always).
+#
+#   omarchy-screensaver            run as the screensaver
+#   omarchy-screensaver --preview  run in any terminal; any key exits
+#   omarchy-screensaver --frame T  print the layout at unfold progress T (0-1)
+
+set -uo pipefail
+
+FPS=60
+UNFOLD_MS=1800
+RAINBOW_MS=1200
+HOLD_MONOGRAM_MS=1200
+HOLD_WORD_MS=2500
+HOLD_RAINBOW_MS=2000
+THEME="$HOME/.local/state/omarchy/current/theme/colors.toml"
+[[ -r $THEME ]] || THEME="$HOME/.config/omarchy/current/theme/colors.toml"
+
+theme_color() { # key fallback
+    local value
+    value=$(awk -F'"' -v key="$1" '$1 ~ "^" key " *= *$" { print $2; exit }' "$THEME" 2>/dev/null)
+    printf '%s' "${value:-$2}"
+}
+BASE_JDP=$(theme_color green '#a7c080')
+BASE_INTO=$(theme_color foreground '#d3c6aa')
+RAINBOW="$(theme_color red '#e67e80') $(theme_color orange '#e69875') $(theme_color yellow '#dbbc7f')"
+RAINBOW+=" $(theme_color green '#a7c080') $(theme_color cyan '#83c092') $(theme_color blue '#7fbbb3') $(theme_color magenta '#d699b6')"
+
+# render <mode> <cols> <rows> [frames | progress]
+#   unfold:  NUL-separated, cursor-positioned frames from monogram to word
+#   rainbow: NUL-separated frames of the word turning rainbow, left to right
+#   text:    the layout at a given unfold progress as plain coloured lines, for ttfx
+# The letters are the bar monogram's geometry (jdp-menu.qml): 9-unit strokes,
+# a 12-degree lean, 45-degree cuts on the d's tip and the j's hook, with i, n,
+# t and o drawn to match. Shapes are axis-aligned rectangles and trapezoids;
+# the lean is applied per half-row when a row is emitted.
+render() {
+    awk -v mode="$1" -v W="$2" -v H="$(($3 * 2))" -v arg="${4:-0}" \
+        -v base_jdp="$BASE_JDP" -v base_into="$BASE_INTO" -v rainbow="$RAINBOW" '
+    function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v) }
+    function ease_in_out(t) { return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ^ 3) / 2 }
+    function ease_out(t) { return 1 - (1 - t) ^ 3 }
+    function lerp(a, b, t) { return a + (b - a) * t }
+    function hex(h, i) { return strtonum("0x" substr(h, 2 + 2 * i, 2)) }
+    function mix(a, b, t) {
+        return int(lerp(hex(a, 0), hex(b, 0), t) + 0.5) ";" int(lerp(hex(a, 1), hex(b, 1), t) + 0.5) ";" int(lerp(hex(a, 2), hex(b, 2), t) + 0.5)
+    }
+    # A shape is "y0 y1 xl0 xl1 xr0 xr1" in units: rows y0..y1, left edge
+    # from xl0 at y0 to xl1 at y1, right edge likewise. Glyph pixels live in
+    # an unsheared grid whose row 0 is unit y 4 and whose column X0 is unit x 0.
+    # Each shape is rasterised relative to the glyph origin, which is snapped
+    # to a whole pixel first, so a letter looks the same wherever it sits (a
+    # sloped edge would otherwise round differently in the monogram and the word).
+    function glyph(k, ox, clip,    n, i, s, py, t, xl, xr, x, o) {
+        o = int(X0 + ox * S + 0.5)
+        n = split(G[k], parts, ";")
+        for (i = 1; i <= n; i++) {
+            split(parts[i], s, " ")
+            for (py = int((s[1] - 4) * S + 0.5); py < int((s[2] - 4) * S + 0.5); py++) {
+                t = ((py + 0.5) / S + 4 - s[1]) / (s[2] - s[1])
+                xl = o + int(lerp(s[3], s[4], t) * S + 0.5); xr = o + int(lerp(s[5], s[6], t) * S + 0.5)
+                for (x = xl; x < xr; x++) if (x >= clip) px[x, py] = k
+            }
+        }
+    }
+    # Places every letter for unfold progress t (0 monogram, 1 word).
+    function layout(t,    k, split_t, u) {
+        delete px
+        split_t = ease_in_out(clamp01(t / 0.55))
+        for (k = 1; k <= 3; k++) X[k] = lerp(mono_left, word_left + AT[k], split_t)
+        p_right = int(X0 + (X[3] + 36) * S + 0.5)
+        for (k = 1; k <= 3; k++) glyph(k, X[k], -1e9)
+        # The rest slide out from behind the p, o first; they start late
+        # enough that the p has all but landed, so none passes its final spot.
+        for (k = 4; k <= 7; k++) {
+            u = ease_out(clamp01((t - 0.45 - DELAY[k]) / 0.37))
+            glyph(k, word_left + AT[k] - 150 * (1 - u), p_right)
+        }
+    }
+    function cell(fg, bg,    key) {
+        key = fg "|" bg
+        if (key == state) return ""
+        state = key
+        return "\033[0" (fg != "" ? ";38;2;" fg : "") (bg != "" ? ";48;2;" bg : "") "m"
+    }
+    # Screen row r: glyph rows gy and gy+1, each shifted right by its lean.
+    function row_text(r,    gy, sa, sb, x, a, b, line) {
+        line = ""; state = "|"
+        gy = r * 2 - TOP
+        sa = int((FOOT - gy) * LEAN + 0.5); sb = int((FOOT - gy - 1) * LEAN + 0.5)
+        for (x = 0; x < W; x++) {
+            a = px[x - sa, gy]; b = px[x - sb, gy + 1]
+            if (a && b && C[a] != C[b]) line = line cell(C[a], C[b]) "▀"
+            else if (a && b) line = line cell(C[a], "") "█"
+            else if (a) line = line cell(C[a], "") "▀"
+            else if (b) line = line cell(C[b], "") "▄"
+            else line = line cell("", "") " "
+        }
+        return line
+    }
+    function frame(    r, out) {
+        out = ""
+        for (r = TOP / 2; r < (TOP + GH) / 2; r++) out = out sprintf("\033[%d;1H", r + 1) row_text(r)
+        printf "%s\033[0m%c", out, 0
+    }
+    BEGIN {
+        # j, d and p are the bar module paths with the shared stem at x 0-9 and
+        # the shared bowl at x 0-36; i, n, t, o match their stroke and heights.
+        G[1] = "10 19 0 0 9 9;22 67 0 0 9 9;67 76 0 -9 9 0;67 76 -8 -10 0 -9"         # j: dot, stem, hook, foot
+        G[2] = "4 13 36 27 36 36;13 22 27 27 36 36;22 31 0 0 36 36;46 55 0 0 36 36;31 46 0 0 9 9;31 46 27 27 36 36" # d
+        G[3] = "22 67 0 0 9 9;22 31 0 0 36 36;46 55 0 0 36 36;31 46 27 27 36 36"      # p: stem, bowl
+        G[4] = "10 19 0 0 9 9;22 55 0 0 9 9"                                           # i
+        G[5] = "22 31 0 0 36 36;31 55 0 0 9 9;31 55 27 27 36 36"                       # n
+        G[6] = "10 55 9 9 18 18;22 31 0 0 27 27;46 55 18 18 27 27"                     # t
+        G[7] = "22 31 0 0 36 36;46 55 0 0 36 36;31 46 0 0 9 9;31 46 27 27 36 36"       # o
+        split("0 19 64 109 127 172 208", AT, " ")   # unit x of each letter in the word: 9-unit gaps,
+                                                  # with d and p standing on their own stems
+        split("0 0 0 0.18 0.12 0.06 0", DELAY, " ")
+        split(rainbow, RAIN, " ")
+        LEAN = 0.21256                             # tan 12 degrees
+        # Word extents before the lean: x -10..244, y 4..76; the lean adds
+        # 72 * LEAN on the left at the top. Largest scale that fits with margin.
+        UW = 254 + 72 * LEAN; UH = 72
+        S = (W - 4) / UW; if ((H - 4) / UH < S) S = (H - 4) / UH
+        GH = int(UH * S + 0.5); if (GH % 2) GH++
+        FOOT = GH                                  # glyph row of the foot line (unit y 76)
+        TOP = int((H - GH) / 2); if (TOP % 2) TOP--
+        # Centre the word on the foot line: unit -10..244 spans 254 units.
+        X0 = int((W - 254 * S) / 2 + 10 * S + 0.5)
+        word_left = 0
+        mono_left = 127 - 23                       # the monogram (x -10..36) centred where the word is
+        for (k = 1; k <= 7; k++) { BASE_C[k] = (k == 3) ? base_jdp : base_into; C[k] = mix(BASE_C[k], BASE_C[k], 0) }
+
+        if (mode == "unfold") {
+            for (f = 0; f < arg; f++) { layout(f / (arg - 1)); frame() }
+        } else if (mode == "rainbow") {
+            layout(1)
+            for (f = 0; f < arg; f++) {
+                t = f / (arg - 1)
+                for (k = 1; k <= 7; k++) C[k] = mix(BASE_C[k], RAIN[k], ease_in_out(clamp01((t - (k - 1) * 0.07) / 0.58)))
+                frame()
+            }
+        } else {
+            # ttfx drops leading blank lines, which would lift the text to
+            # the top; a blank braille cell (not whitespace) keeps line one.
+            layout(arg)
+            for (r = 0; r < H / 2; r++) {
+                line = row_text(r); sub(/ +$/, "", line)
+                print (r == 0 ? "⠀" : "") line "\033[0m"
+            }
+        }
+    }'
+}
+
+if [[ ${1:-} == --frame ]]; then
+    render text 72 16 "${2:-1}" | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/⠀//' -e 's/ *$//' | sed '/^$/d'
+    exit 0
+fi
+
+preview=false
+[[ ${1:-} == --preview ]] && preview=true
+
+screensaver_in_focus() {
+    $preview && return 0
+    hyprctl activewindow -j | jq -e '.class == "org.omarchy.screensaver"' >/dev/null 2>&1
+}
+
+effect_pid=""
+exit_screensaver() {
+    [[ -n $effect_pid ]] && kill "$effect_pid" 2>/dev/null
+    printf '\e[0m\e[2J\e[H\e[?25h'
+    stty echo 2>/dev/null
+    if ! $preview; then
+        hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null || hyprctl keyword cursor:invisible false &>/dev/null || true
+        pkill -x ttfx 2>/dev/null
+        pkill -f '[o]rg.omarchy.screensaver' 2>/dev/null
+    fi
+    exit 0
+}
+trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
+
+now_us() { local t=${EPOCHREALTIME/[.,]/}; printf '%s' "$((10#$t))"; }
+
+# Waits until a wall-clock deadline (microseconds), ending the screensaver on
+# a key. Focus is checked only when asked, at most every half second: a
+# hyprctl call per frame would stutter the animation.
+wait_until() { # deadline-us [check-focus]
+    local left
+    while left=$(($1 - $(now_us))); ((left > 0)); do
+        ((left > 500000)) && left=500000
+        read -rsn1 -t "$(printf '%d.%06d' $((left / 1000000)) $((left % 1000000)))" && exit_screensaver
+        [[ -n ${2:-} ]] && { screensaver_in_focus || exit_screensaver; }
+    done
+}
+
+wait_for() { wait_until $(($(now_us) + $1 * 1000)) check-focus; } # milliseconds
+
+# Plays the global frames over a fixed duration, forwards or backwards. Paced
+# by the clock, so a slow terminal drops frames instead of slowing down.
+play() { # direction duration-ms
+    local n=${#frames[@]} start k=0
+    local span=$(($2 * 1000))
+    start=$(now_us)
+    while ((k < n)); do
+        if [[ $1 == forwards ]]; then printf '%s' "${frames[k]}"; else printf '%s' "${frames[n - 1 - k]}"; fi
+        ((k == n - 1)) && break
+        wait_until $((start + (k + 1) * span / (n - 1)))
+        k=$(( ($(now_us) - start) * (n - 1) / span ))
+        ((k >= n)) && k=$((n - 1))
+    done
+}
+
+effect() { # input-file [extra ttfx args...]
+    local input=$1
+    shift
+    ttfx -i "$input" --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas \
+        --no-eol --no-restore-cursor --random-effect "$@" &
+    effect_pid=$!
+    while kill -0 "$effect_pid" 2>/dev/null; do
+        read -rsn1 -t 0.25 && exit_screensaver
+        screensaver_in_focus || exit_screensaver
+    done
+    effect_pid=""
+}
+
+# Exact handoff: our text, at our position, keeping our colours.
+our_effect() { effect "$1" --anchor-canvas nw --anchor-text nw --existing-color-handling always; }
+
+printf '\033]11;rgb:00/00/00\007' # black background, as Omarchy's screensaver
+printf '\e[?25l\e[2J'
+stty -echo 2>/dev/null
+$preview || hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null || hyprctl keyword cursor:invisible true &>/dev/null
+
+# Terminals start at 80x24 and resize once the compositor sizes the window.
+deadline=$((SECONDS + 2))
+while ((SECONDS < deadline)) && [[ $(stty size 2>/dev/null) == "24 80" ]]; do sleep 0.02; done
+
+work=$(mktemp -d)
+trap 'rm -f "$work"/*; rmdir "$work"' EXIT
+unfold_count=$((UNFOLD_MS * FPS / 1000))
+rainbow_count=$((RAINBOW_MS * FPS / 1000))
+size=""
+while :; do
+    if [[ $(stty size) != "$size" ]]; then
+        size=$(stty size)
+        read -r rows cols <<<"$size"
+        render text "$cols" "$rows" 0 >"$work/monogram"
+        render text "$cols" "$rows" 1 >"$work/word"
+        mapfile -d '' unfold < <(render unfold "$cols" "$rows" "$unfold_count")
+        mapfile -d '' rainbow < <(render rainbow "$cols" "$rows" "$rainbow_count")
+    fi
+
+    printf '\e[2J'
+    our_effect "$work/monogram"
+    wait_for "$HOLD_MONOGRAM_MS"
+    frames=("${unfold[@]}"); play forwards "$UNFOLD_MS"
+    wait_for "$HOLD_WORD_MS"
+    frames=("${rainbow[@]}"); play forwards "$RAINBOW_MS"
+    wait_for "$HOLD_RAINBOW_MS"
+    play backwards "$RAINBOW_MS"
+    wait_for 600
+    our_effect "$work/word"
+    wait_for "$HOLD_WORD_MS"
+    frames=("${unfold[@]}"); play backwards "$UNFOLD_MS"
+    wait_for "$HOLD_MONOGRAM_MS"
+
+done
