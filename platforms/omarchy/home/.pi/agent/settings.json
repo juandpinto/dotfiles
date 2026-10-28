@@ -3,7 +3,7 @@
   "lastChangelogVersion": "1.2.0",
   "theme": "everforest-omarchy",
   "defaultProvider": "github-copilot",
-  "defaultModel": "gpt-6.1-sol",
+  "defaultModel": "claude-opus-5.5",
   "defaultThinkingLevel": "xhigh",
   "showHardwareCursor": true,
   "fullscreenWheelScrollLines": 5,

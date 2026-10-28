@@ -12,6 +12,10 @@
 - Prefer `rg`/`fd` over `grep`/`find` for searching — faster, and skip `.gitignore`'d noise (`node_modules`, `.git`) by default. Use `--no-ignore`/`-uu` if you need to search inside ignored paths.
 - Use `curl` for web/research lookups (docs, Google/Scholar, general info gathering), and `gh` for anything involving GitHub repos, issues, or PRs.
 
+## Troubleshooting pointers
+
+- On `solidago` (personal Asahi/Omarchy laptop), before diagnosing Wi-Fi or network connection problems, read `~/Documents/personal-wiki/projects/personal-computing/wifi-networking.md`.
+
 ## Skills
 
 - When writing, editing, or running any Python (`.py`) file, make sure you're following the conventions laid out in the `python` skill — don't rely on inferring these from context.
