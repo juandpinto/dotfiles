@@ -1,0 +1,24 @@
+# Prepended to Yazi's defaults, which all keep working. M, T, c ⇒ m and t ⇒ h
+# are otherwise unbound.
+
+[[mgr.prepend_keymap]]
+on   = "M"
+run  = "plugin mount"
+desc = "Mount, unmount or eject drives"
+
+[[mgr.prepend_keymap]]
+on   = "T"
+run  = "plugin toggle-pane max-preview"
+desc = "Maximize or restore the preview pane"
+
+[[mgr.prepend_keymap]]
+on   = [ "c", "m" ]
+run  = "plugin chmod"
+desc = "Chmod selected files"
+
+# herdr-tab-here (Linux) also raises Herdr's window when Yazi runs outside it.
+# --orphan keeps a Herdr window it had to open alive after Yazi quits.
+[[mgr.prepend_keymap]]
+on   = [ "t", "h" ]
+run  = '''shell --orphan -- if command -v herdr-tab-here >/dev/null; then herdr-tab-here; else herdr tab create --cwd "$PWD" --focus; fi'''
+desc = "New Herdr tab in CWD"

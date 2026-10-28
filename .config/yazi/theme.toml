@@ -9,17 +9,20 @@ dark  = "everforest-dark"
 light = "everforest-light"
 
 # Override the flavor's solid canvas color with `reset` so yazi doesn't emit
-# a background fill, letting WezTerm's native background (opacity + blur)
+# a background fill, letting the terminal's native background (opacity + blur)
 # show through. UI chrome (status bar, tabs, mode indicator) keeps its color.
 [app]
 overall = { bg = "reset" }
 
 [git]
 added = { fg = "green" }
-modified = { fg = "blue" }
+# git.yazi splits modified files by staging; both keep the same blue M.
+unstaged = { fg = "blue" }
+staged   = { fg = "blue" }
 deleted  = { fg = "red", bold = true }
 added_sign = "A"
-modified_sign = "M"
+unstaged_sign = "M"
+staged_sign   = "M"
 deleted_sign = "D"
 ignored_sign = "."
 unknown_sign = " "

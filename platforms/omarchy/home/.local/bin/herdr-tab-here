@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Open a new Herdr tab in a directory (default: the current one) and show it.
+# Inside a Herdr pane, the tab joins that pane's workspace. From any other
+# window, such as Yazi on Super+Shift+F, it joins Herdr's focused workspace and
+# Herdr's window is raised, or opened when no window shows the session.
+set -euo pipefail
+dir=$(realpath -- "${1:-$PWD}")
+if [[ -n ${HERDR_WORKSPACE_ID:-} ]]; then
+    exec herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$dir" --focus >/dev/null
+fi
+if ! herdr tab create --cwd "$dir" --focus >/dev/null; then
+    notify-send "Herdr" "Could not open a tab: is the Herdr server running?"
+    exit 1
+fi
+# The upstream widget's window discovery; herdr-widget-open focuses or launches.
+sessions=${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/jankeesvw.herdr/bin/herdr-sessions
+session=$("$sessions" list | jq -ce 'first(.sessions[] | select(.isDefault and (.machineId // "") == ""))')
+exec herdr-widget-open "$session"
