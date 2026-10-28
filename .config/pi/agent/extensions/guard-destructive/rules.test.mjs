@@ -180,6 +180,16 @@ const autoAllowCases = [
 	["rm -rf /tmp/pi-guard-demo", true],
 	["rm -rf /tmp/pi-guard-demo/*", true],
 	["rm -rf /var/tmp/scratch-xyz", true],
+	// Anything inside a directory named exactly `tmp`, wherever it sits
+	["rm -rf /home/u/proj/.sandbox/tmp/demo-probe", true],
+	["rm -rf .sandbox/tmp/demo-probe", true],
+	["rm -rf ~/.npm/_cacache/tmp/abc", true],
+	["rm -rf proj/tmp/*", true],
+	["rm -rf .sandbox/tmp", false], // the tmp directory itself
+	["rm -rf .sandbox/tmp/", false],
+	["rm -rf .sandbox/tmp/../../src", false], // climbs back out via ..
+	["rm -rf /tmp/../home/u/Documents", false],
+	["rm -rf tmp-data/x tmpl/x .tmp/x", false], // look-alike names
 	// Not auto-allowed: unrecognized target, mixed target, bare wildcard, bare temp root
 	["rm -rf some-random-project-folder", false],
 	["rm -rf node_modules ~/Documents/notes", false],
@@ -253,6 +263,9 @@ const cdCases = [
 	["cd - && rm -rf dir", false], // cd - can't be resolved — falls back to today's (unsafe) behavior
 	["cd /tmp && cd .. && rm -rf dir", false], // walks back out of /tmp via ..
 	["cd /tmp/foo && cd bar && rm -rf dir", true], // chained cd's, still resolves under /tmp
+	["cd .sandbox/tmp && rm -rf demo-probe", true], // relative cd into a project tmp dir
+	["cd .sandbox/tmp && rm -rf ../../src", false],
+	["cd .sandbox/tmp && rm -rf ..", false],
 ];
 for (const [cmd, expectAutoAllowed] of cdCases) {
 	const isDestructive = isTier2Destructive(cmd, { cwdContext: cwdCtx });
@@ -266,6 +279,14 @@ assert(
 	isTier2Destructive("cd /tmp && rm -rf dir"),
 	true,
 );
+
+// The reported case: a long probe chain that clears a project's .sandbox/tmp
+// output and pipes JSON through `python3 -c` snippets full of `;` and `|`.
+{
+	const proj = "/Users/juanpinto/finance-next";
+	const cmd = `cd ${proj} && rm -rf ${proj}/.sandbox/tmp/demo-probe && ./run-core python -m demo ${proj}/.sandbox/tmp/demo-probe 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d)" && ./run-core finance-core fetch ${proj}/.sandbox/tmp/demo-probe/workspace.toml | python3 -c "import json,sys; print([o['status'] for o in json.load(sys.stdin)['outcomes']])"`;
+	assert("project .sandbox/tmp probe chain auto-allowed", isTier2Destructive(cmd, { cwdContext: cwdCtx }), false);
+}
 
 // ── Force-push helpers ────────────────────────────────────────────────────
 assert("force push explicit main", forcePushNamesProtectedBranch("git push --force origin main"), true);

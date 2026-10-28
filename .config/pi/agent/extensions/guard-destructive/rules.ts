@@ -314,15 +314,16 @@ export function checkTier1Patterns(command: string): Tier1Match | undefined {
 //
 // Auto-allow (skip the confirm entirely) when *every* rm target is
 // recognizably disposable: a well-known build/cache/dependency-artifact
-// directory name, or anything that resolves to a path actually rooted
-// under a real OS temp directory. Anything else in the same rm invocation
+// directory name, anything that resolves to a path actually rooted
+// under a real OS temp directory, or anything inside a directory named
+// exactly `tmp`. Anything else in the same rm invocation
 // (an unrecognized target, or a bare wildcard like `*` whose safety
 // depends on cwd) keeps the confirm for the whole command — err toward
 // asking when uncertain.
 //
 // Deliberately NOT included: generic "test"/"tmp"/"scratch" substring
-// matching on project-relative paths (too easy to collide with a real,
-// meaningful directory someone happened to name similarly), and bare `*`
+// matching (too easy to collide with a real, meaningful directory such as
+// `tmp-data` or `tmpl`), and bare `*`
 // (its safety depends on cwd, which resolving via a preceding `cd` doesn't
 // change — a wildcard could still expand to something unexpected).
 
@@ -361,6 +362,17 @@ function basenameOf(token: string): string {
 export function isUnderSafeRoot(target: string, safeRoots: string[] = DEFAULT_SAFE_ROOTS): boolean {
 	const withSlash = target.endsWith("/") ? target : `${target}/`;
 	return safeRoots.some((root) => withSlash.startsWith(root) && withSlash !== root);
+}
+
+/**
+ * True if `path` is strictly inside a directory named exactly `tmp`, wherever
+ * it sits (`.sandbox/tmp/run-1`, `~/.npm/_cacache/tmp/x`, a Maildir's `tmp/`).
+ * A directory named `tmp` conventionally holds only transient files. The
+ * `tmp` directory itself still asks, as do look-alikes such as `tmp-data`.
+ * Only pass a normalized path, or `..` could climb back out.
+ */
+export function isInsideTmpDir(path: string): boolean {
+	return path.split("/").filter(Boolean).slice(0, -1).includes("tmp");
 }
 
 /**
@@ -457,12 +469,16 @@ export function segmentsWithCwd(
 
 function isRmTargetSafe(token: string, cwd: string | null, homeDir: string | undefined, safeRoots: string[]): boolean {
 	if (SAFE_DISPOSABLE_BASENAMES.has(basenameOf(token))) return true;
-	if (isUnderSafeRoot(token, safeRoots)) return true;
-	if (cwd !== null && homeDir !== undefined) {
-		const resolved = resolvePathToken(token, cwd, homeDir);
-		if (resolved !== null && isUnderSafeRoot(resolved, safeRoots)) return true;
-	}
-	return false;
+	// Check only normalized paths, so `..` cannot climb back out of a safe
+	// place (`/tmp/../home/me`, `.sandbox/tmp/../../src`). With an unknown cwd,
+	// a relative path is normalized against `/` as a stand-in: that can't say
+	// where the path really is, but the components left over still show
+	// whether it stays inside a `tmp` directory.
+	const resolved = resolvePathToken(token, cwd ?? "/", homeDir ?? "/");
+	if (resolved === null) return false;
+	if (isInsideTmpDir(resolved)) return true;
+	const locationKnown = token.startsWith("/") || (cwd !== null && homeDir !== undefined);
+	return locationKnown && isUnderSafeRoot(resolved, safeRoots);
 }
 
 /**
