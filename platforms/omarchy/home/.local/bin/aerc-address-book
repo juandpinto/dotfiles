@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# aerc address-book-cmd: To/Cc/From completion from mail indexed by notmuch.
+#
+#   address-book-cmd = $HOME/.local/bin/aerc-address-book "%s"
+#
+# Prints up to 100 "address<TAB>name" lines (aerc's format and line cap) whose
+# name or address contains every typed word, ranked by how often you have
+# written to them, then by how often they have written to you. `notmuch
+# address` alone can't do this: its query selects *messages*, not addresses,
+# it only prints senders by default, and --deduplicate=address leaves the
+# order unspecified.
+set -euo pipefail
+
+read -r -a words <<< "${*,,}"
+# Explicit "and": notmuch ORs repeated terms with the same prefix.
+terms=() from_query= to_query=
+for word in "${words[@]}"; do
+    # Quotes and parentheses would break notmuch's query syntax.
+    word=${word//[\"()]/}
+    [[ -n $word ]] || continue
+    terms+=("$word")
+    from_query+="${from_query:+ and }from:$word*"
+    to_query+=" and to:$word*"
+done
+
+sent=
+while IFS= read -r address; do
+    if [[ -n $address ]]; then sent+="${sent:+ or }from:$address"; fi
+done < <(notmuch config get user.primary_email; notmuch config get user.other_email)
+
+addresses() {
+    notmuch address --format=json --output=count --deduplicate=address "$@"
+}
+
+{
+    addresses --output=sender "${from_query:-*}"
+    if [[ -n $sent ]]; then
+        # Recipients are read from the message files (slow), so only look at
+        # mail you sent: that's who you write to.
+        addresses --output=recipients "($sent)$to_query"
+    else
+        echo '[]'
+    fi
+} | jq --raw-output --slurp '
+    (.[0] | map(.received = .count)) + (.[1] | map(.sent = .count))
+    | group_by(.address | ascii_downcase)
+    | map({
+        address: .[0].address,
+        name: (max_by(.count).name // ""),
+        sent: (map(.sent // 0) | add),
+        received: (map(.received // 0) | add)
+    })
+    | map(select(
+        ((.name + " " + .address) | ascii_downcase) as $text
+        | all($ARGS.positional[]; . as $word | $text | contains($word))
+        and (.address | test("no-?reply|do-?not-?reply|mailer-daemon"; "i") | not)
+    ))
+    | sort_by(-.sent, -.received)
+    | .[:100][]
+    | "\(.address)\t\(.name)"
+' --args "${terms[@]}"
