@@ -1,0 +1,16 @@
+[Desktop Entry]
+# Overrides the packaged yazi.desktop so folders opened from other apps
+# (xdg-open, inode/directory) get a styled Omarchy terminal window. This is
+# omarchy-launch-tui's command as a uwsm *service*: xdg-open runs handlers in
+# the foreground, and the default scope type would block it until Yazi quits.
+Type=Application
+Name=Yazi
+GenericName=File Manager
+Comment=Terminal file manager
+Icon=yazi
+TryExec=yazi
+Exec=uwsm-app -t service -- xdg-terminal-exec --app-id=org.omarchy.yazi -e yazi %f
+Terminal=false
+MimeType=inode/directory;
+Categories=System;FileManager;FileTools;
+Keywords=File;Manager;Explorer;Browser;Folder;

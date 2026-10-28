@@ -4,13 +4,13 @@ hl.unbind("SUPER + SHIFT + CTRL + SPACE")
 o.bind("SUPER + SHIFT + CTRL + SPACE", "Everforest dark/light",
     os.getenv("HOME") .. "/.local/bin/everforest toggle")
 
--- strata-installer: file-manager start
+-- Yazi is the file manager (was: Nautilus by default, then Strata). It opens in
+-- its own terminal window with the app-id org.omarchy.yazi.
 hl.unbind("SUPER + SHIFT + F")
 hl.unbind("SUPER + ALT + SHIFT + F")
-o.bind("SUPER + SHIFT + F", "File manager", { launch = os.getenv("HOME") .. "/.local/bin/strata" })
+o.bind("SUPER + SHIFT + F", "File manager", { tui = "yazi" })
 o.bind("SUPER + ALT + SHIFT + F", "File manager (cwd)",
-  "uwsm-app -- " .. os.getenv("HOME") .. "/.local/bin/strata \"$(omarchy-cmd-terminal-cwd)\"")
--- strata-installer: file-manager end
+  "omarchy-launch-tui yazi \"$(omarchy-cmd-terminal-cwd)\"")
 
 -- Apple Music webapp shortcut
 hl.unbind("SUPER + SHIFT + M")

@@ -53,9 +53,10 @@ hl.layer_rule({
 o.window({ workspace = 'w[1]' }, { border_size = 0 })
 
 -- Keep the prior no-blur behavior for other apps. Kitty asks for blur; Hyprland
--- controls its strength. The Herdr launcher uses its own terminal app-id.
+-- controls its strength. Like Omarchy's terminals.lua, also match the app-ids
+-- its launchers give terminal windows: org.omarchy.* (Herdr, Yazi, btop) and TUI.*.
 o.window('.*', { no_blur = true })
-o.window('^(kitty|org\\.omarchy\\.herdr)$', { no_blur = false })
+o.window('^(kitty|org\\.omarchy\\..*|TUI\\..*)$', { no_blur = false })
 
 -- Match Kitty's background blur, but keep fullscreen Brave content opaque.
 -- Web apps get a derived class (brave-<host>__<path>-Default), so list them.

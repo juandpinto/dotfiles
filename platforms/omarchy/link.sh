@@ -18,7 +18,7 @@ link_file() {
     ln -sr -- "$source" "$target"
     printf '%s -> %s\n' "$target" "$source"
 }
-for relative in .config/nvim .config/shell .config/stylua .config/ruff .markdownlint.jsonc; do
+for relative in .config/nvim .config/shell .config/stylua .config/ruff .config/yazi .markdownlint.jsonc; do
     link_file "$repo/$relative" "$relative"
 done
 # Herdr: ~/.config/herdr is Herdr's runtime directory (sockets, logs, session

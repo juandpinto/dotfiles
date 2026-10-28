@@ -2,7 +2,7 @@
 
 Personal macOS and Omarchy dotfiles repo for Juan Pinto. The existing root
 Stow package remains the Mac deployment; Linux-only files live in the ignored
-`platforms/omarchy/home/` overlay. Neovim and IPython are shared. No CI pipeline.
+`platforms/omarchy/home/` overlay. Neovim, IPython and Yazi are shared. No CI pipeline.
 Configuration validation and Linux migration notes live in `platforms/omarchy/`.
 
 ## Symlink model (GNU Stow)
