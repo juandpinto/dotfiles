@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, statSync } 
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rasterizeMark } from './rasterize-mark.mjs';
 
 const overlay = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(overlay, 'home/.config');
@@ -147,6 +148,31 @@ const lint = execFileSync('/usr/lib/qt6/bin/qmllint', ['-I', '/usr/share/omarchy
 assert.doesNotMatch(lint, /^Error:/m, lint);
 console.log('PASS front-app module contract and lint');
 
+// The jdp-menu custom module: Keystroke's menu button with our monogram drawn
+// in theme color. Its two paths (the green p; j's dot and foot with d's
+// ascender) are the drawing's source: rasterised with the module's lean they
+// must give exactly the About/fastfetch logo.
+const menuModule = readFileSync(join(source, 'omarchy/bar/modules/jdp-menu.qml'), 'utf8');
+assert.match(menuModule, /^Item \{$/m);
+for (const line of ['property var bar', 'property string moduleName', 'property var settings', 'implicitWidth:', 'implicitHeight:']) {
+    assert.ok(menuModule.includes(line), line);
+}
+assert.match(menuModule, /fillColor: button\.foreground/);
+assert.match(menuModule, /fillColor: root\.green/);
+assert.match(menuModule, /colors\.toml/, 'The p green comes from the theme file');
+assert.doesNotMatch(menuModule, /#[0-9a-fA-F]{6}"/, 'Colors must remain theme-owned');
+for (const call of [`omarchy-shell shell toggle omarchy.menu '{\\"menu\\":\\"root\\"}'`, 'omarchy-shell shell summon omarchy.menu ',
+    'xdg-terminal-exec', 'loaders["evindor.keystroke"]']) {
+    assert.ok(menuModule.includes(call), call);
+}
+assert.match(menuModule, /Math\.tan\(12 \* Math\.PI \/ 180\)/, 'The 12-degree lean');
+assert.equal(rasterizeMark(menuModule), readFileSync(join(source, 'omarchy/branding/about.txt'), 'utf8').trimEnd(),
+    'The About logo is the bar monogram rasterised (node tests/rasterize-mark.mjs <module> > about.txt)');
+const menuLint = execFileSync('/usr/lib/qt6/bin/qmllint', ['-I', '/usr/share/omarchy/shell', '-I', '/usr/lib/qt6/qml',
+    join(source, 'omarchy/bar/modules/jdp-menu.qml')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+assert.doesNotMatch(menuLint, /^Error:/m, menuLint);
+console.log('PASS jdp-menu module contract, monogram matches the About logo, and lint');
+
 // The derived island bar: a recorded overlay that must still apply to the
 // installed engine, plus the generator and post-update hook that rebuild it.
 const islandPatch = join(overlay, 'patches/island-bar-overlay.patch');
@@ -201,6 +227,11 @@ if (process.argv.includes('--live')) {
     assert.deepEqual(widget.iconOverrides, JSON.parse(command('bar-app-glyphs', ['json'])),
         'Live overrides must match the mapping script');
     const leftIds = config.bar.layout.left.map(entry => entry.id ?? entry);
+    assert.deepEqual(config.bar.layout.left[0], { id: 'jdp-menu', type: 'qml' }, 'The monogram menu button leads the bar');
+    assert.ok(!entries.some(entry => entry.id === 'evindor.keystroke' || entry.id === 'omarchy.menu'),
+        'Keystroke\'s own button, with the Omarchy glyph, is off the bar');
+    assert.ok(config.plugins.some(entry => (entry.id ?? entry) === 'evindor.keystroke'), 'The Keystroke palette stays enabled');
+    assert.equal(readFileSync(join(homedir(), '.config/omarchy/bar/modules/jdp-menu.qml'), 'utf8'), menuModule, 'Menu module is linked');
     assert.equal(leftIds[leftIds.indexOf(pluginId) + 1], 'front-app', 'App name follows the workspaces');
     assert.deepEqual(config.bar.layout.left.find(entry => entry.id === 'front-app'), { id: 'front-app', type: 'qml' });
     assert.equal(readFileSync(join(homedir(), '.config/omarchy/bar/modules/front-app.qml'), 'utf8'), frontApp, 'Module is linked');
@@ -260,6 +291,9 @@ if (process.argv.includes('--live')) {
     const left = geometry.filter(slot => slot.section === 'left');
     const right = geometry.filter(slot => slot.section === 'right');
     assert.ok(left.some(slot => slot.id === pluginId));
+    const menuSlot = left.find(slot => slot.id === 'jdp-menu');
+    assert.ok(menuSlot && menuSlot.width > 0, 'The monogram menu button is shown');
+    assert.ok(menuSlot.x < left.find(slot => slot.id === pluginId).x, 'Menu button is left of the workspaces');
     const frontAppSlot = left.find(slot => slot.id === 'front-app');
     assert.ok(frontAppSlot && frontAppSlot.width > 0, 'The focused app name is shown');
     assert.ok(frontAppSlot.x > left.find(slot => slot.id === pluginId).x, 'App name is right of the workspaces');
@@ -270,7 +304,7 @@ if (process.argv.includes('--live')) {
         'Workspace and status sections must not overlap');
     const logs = command('quickshell', ['log', '-p', '/usr/share/omarchy/shell', '-t', '1000', '--no-color']);
     const warnings = logs.split('\n').filter(line => /WARN|ERROR/.test(line)
-        && (line.includes(pluginId) || line.includes('front-app') || line.includes('island-bar')));
-    assert.deepEqual(warnings, [], 'No Workspace Icons, front-app, or island bar warnings in the current shell log');
-    console.log('PASS live island bar, widget settings, glyph overrides, rainbow option, patched checkout, Kitty foreground programs, app name, now playing, geometry, clock position, and clean log');
+        && (line.includes(pluginId) || line.includes('front-app') || line.includes('jdp-menu') || line.includes('island-bar')));
+    assert.deepEqual(warnings, [], 'No Workspace Icons, front-app, jdp-menu, or island bar warnings in the current shell log');
+    console.log('PASS live island bar, menu monogram, widget settings, glyph overrides, rainbow option, patched checkout, Kitty foreground programs, app name, now playing, geometry, clock position, and clean log');
 }

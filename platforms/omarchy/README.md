@@ -164,6 +164,10 @@ The helper and systemd units live in this Linux overlay; the Mac setup is unchan
 
 For a subtle 1-second crossfade instead of the stock diagonal reveal, the user-owned `jdpinto.background` clone lives under `home/.config/omarchy/plugins/` and is linked as a complete directory. Activate it with `omarchy plugin enable jdpinto.background`; the current shell's cached QML may require `omarchy restart shell` after approval to apply code changes reliably. Disable the clone with `omarchy plugin disable jdpinto.background` to restore the stock renderer. See the clone's README for provenance and update caveats; no package-owned file is patched.
 
+## Logo
+
+Our jdp monogram replaces Omarchy's logo in fastfetch and the About window (`home/.config/omarchy/branding/about.txt`) and as the bar's menu button (see [bar.md](bar.md)). It is j, d and p sharing one stem and one bowl: the j's stem is the p's, the p's bowl is the d's, and the d's own stem stands to the right. It leans 12°, the d's tip and the j's hook are cut at 45°, and the p is the theme's green. The bar module's two paths are the source drawing; `tests/rasterize-mark.mjs` turns them into the block text. Favicon tiles made from the same paths (cream with the p in Everforest light's green for light pages, dark with the green p for dark ones, and one SVG that switches with `prefers-color-scheme`) are in `~/Documents/logo-drafts/final/`, outside Git.
+
 ## File manager
 
 Yazi replaces both Nautilus (Omarchy's default) and Strata (used here before). The configuration in `.config/yazi` is shared with the Mac. Yazi runs in a kitty window with the app ID `org.omarchy.yazi`, so it gets Omarchy's terminal window rules. On Linux, it is the file manager in three places:
