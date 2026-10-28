@@ -5,7 +5,7 @@ A small daemon subscribes to Herdr's layout events and, after each one, reads `s
 
 - `$idx` on every workspace and agent pane: its 1-based position in the expanded sidebar, which is the number that `prefix+w` + digit, `switch_workspace`, and `focus_agent` jump to.
 - `$title` on every agent pane: the terminal title, where pi's `π - <session> - <dir>` becomes just `<session>`.
-- Tab labels, like tmux's automatic-rename: the session name of the tab's agent, or the program named in its terminal title. Tabs you named yourself are left alone.
+- Tab labels, like tmux's `#I:#W`: the tab's position, which is what `switch_tab` jumps to, then the session name of the tab's agent or the program named in its terminal title, like tmux's automatic-rename. Tabs you named yourself keep that name, numbered like the rest.
 
 Only values that differ from what Herdr already shows are written, so a quiet session costs one snapshot read per event. Standard library only; Python 3.9+ on Linux and macOS.
 """
@@ -28,6 +28,9 @@ from pathlib import Path
 
 SOURCE = "labels"
 MAX_TAB_LABEL = 15
+TAB_SEPARATOR = ":"
+# The index at the front of a label, "2:" in "2:bash", or a bare "2". The rename prompt starts with the full label, so a name typed there may still carry it.
+TAB_INDEX = re.compile(r"^\d+(?::|$)")
 # Everything that can reorder the sidebar, retitle a pane, or rename a tab. Focus and output events are left out; so is workspace.metadata_updated, which our own workspace writes emit. Pane writes echo as pane.updated, which the diff turns into one extra snapshot and nothing else.
 EVENTS = (
     "workspace.created",
@@ -206,6 +209,16 @@ def tab_name(panes: list[dict]) -> str | None:
     return None
 
 
+def numbered(position: int, name: str | None) -> str:
+    """Return a tab label: its position, then its name if it has one."""
+    return f"{position}{TAB_SEPARATOR}{name}" if name else str(position)
+
+
+def typed_name(label: str) -> str:
+    """Return the name in a label typed by hand, without a leading index; "" for just a number."""
+    return TAB_INDEX.sub("", label, count=1).strip()
+
+
 # %%
 def desired_tokens(snapshot: dict) -> tuple[dict[str, dict], dict[str, dict]]:
     """Return the tokens each workspace and agent pane should carry."""
@@ -268,26 +281,31 @@ def sync_tokens(sock: Path, snapshot: dict) -> None:
             )
 
 
-def sync_tabs(sock: Path, snapshot: dict, owned: dict[str, str]) -> bool:
-    """Rename the tabs this plugin owns; return whether `owned` changed.
+def sync_tabs(
+    sock: Path, snapshot: dict, state: dict[str, dict[str, str]]
+) -> bool:
+    """Number every tab and name the ones the user has not; return whether `state` changed.
 
-    A tab is ours while its label is Herdr's default (its position in the workspace) or the label we last gave it. Any other label was typed by the user, and the tab is theirs from then on. Herdr has no way to drop a custom label, so a tab with nothing to say about itself is renamed back to its position, which looks like the default.
+    `state["tabs"]` holds the label this plugin last wrote to each tab, and `state["names"]` the names typed by hand. A label that differs from the one we wrote was typed by the user, or is Herdr's default for a new tab, which is its position. Its name without any leading index becomes the tab's fixed name; a bare number leaves the tab to automatic naming. Herdr has no way to drop a custom label, so renaming a tab to just its number is how it is handed back.
     """
+    written, names = state["tabs"], state["names"]
     panes_by_tab: dict[str, list[dict]] = defaultdict(list)
     for pane in snapshot["panes"]:
         panes_by_tab[pane["tab_id"]].append(pane)
-    position: dict[str, int] = defaultdict(int)
-    before = dict(owned)
+    positions: dict[str, int] = defaultdict(int)
+    before = {key: dict(value) for key, value in state.items()}
     live = set()
     for tab in snapshot["tabs"]:
         tab_id, label = tab["tab_id"], tab["label"]
         live.add(tab_id)
-        position[tab["workspace_id"]] += 1
-        default = str(position[tab["workspace_id"]])
-        if label != default and owned.get(tab_id) != label:
-            owned.pop(tab_id, None)
-            continue
-        wanted = tab_name(panes_by_tab[tab_id]) or default
+        positions[tab["workspace_id"]] += 1
+        if label != written.get(tab_id):
+            if name := typed_name(label):
+                names[tab_id] = name
+            else:
+                names.pop(tab_id, None)
+        name = names.get(tab_id) or tab_name(panes_by_tab[tab_id])
+        wanted = numbered(positions[tab["workspace_id"]], name)
         if wanted != label:
             try:
                 request(sock, "tab.rename", {"tab_id": tab_id, "label": wanted})
@@ -295,25 +313,26 @@ def sync_tabs(sock: Path, snapshot: dict, owned: dict[str, str]) -> bool:
             except RuntimeError as error:
                 log.warning("%s", error)
                 continue
-        owned[tab_id] = wanted
-    for tab_id in list(owned):
-        if tab_id not in live:
-            del owned[tab_id]
-    return owned != before
+        written[tab_id] = wanted
+    for tabs in (written, names):
+        for tab_id in set(tabs) - live:
+            del tabs[tab_id]
+    return state != before
 
 
-def load_owned(path: Path) -> dict[str, str]:
-    """Return the labels this plugin last gave each tab."""
+def load_state(path: Path) -> dict[str, dict[str, str]]:
+    """Return the labels this plugin last wrote and the names typed by hand, by tab."""
     try:
-        return json.loads(path.read_text())["tabs"]
-    except (OSError, ValueError, KeyError):
-        return {}
+        saved = json.loads(path.read_text())
+    except (OSError, ValueError):
+        saved = {}
+    return {"tabs": saved.get("tabs", {}), "names": saved.get("names", {})}
 
 
-def save_owned(path: Path, owned: dict[str, str]) -> None:
-    """Write the owned-tab labels atomically."""
+def save_state(path: Path, state: dict[str, dict[str, str]]) -> None:
+    """Write the tab state atomically."""
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"tabs": owned}))
+    tmp.write_text(json.dumps(state))
     tmp.replace(path)
 
 
@@ -321,9 +340,9 @@ def sync(sock: Path, path: Path) -> None:
     """Run one full pass: numbers and titles, then tab labels."""
     snapshot = request(sock, "session.snapshot")["snapshot"]
     sync_tokens(sock, snapshot)
-    owned = load_owned(path)
-    if sync_tabs(sock, snapshot, owned):
-        save_owned(path, owned)
+    state = load_state(path)
+    if sync_tabs(sock, snapshot, state):
+        save_state(path, state)
 
 
 # %%

@@ -1,12 +1,12 @@
 # labels: sidebar numbers, clean pi titles, and automatic tab names for Herdr
 
-Herdr can jump to an agent or workspace by number, but its expanded sidebar does not show the numbers, and its tabs are called `1`, `2`, `3`. This plugin fills both gaps from the outside, through display values Herdr already accepts from plugins. It does three things:
+Herdr can jump to an agent, workspace, or tab by number, but its expanded sidebar does not show the numbers, and its tabs show either a name or a number, never both. This plugin fills both gaps from the outside, through display values Herdr already accepts from plugins. It does three things:
 
-| What           | Where it shows                                 | Value                                                                                                       |
-| -------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `$idx` token   | Spaces and Agents rows (`[ui.sidebar.*].rows`) | The row's 1-based position, which is what `prefix+w` + digit, `switch_workspace`, and `focus_agent` jump to |
-| `$title` token | Agents rows                                    | The pane's terminal title; pi's `π - <session> - <dir>` becomes `<session>`                                 |
-| Tab labels     | The tab bar                                    | The tab's agent session, or the program named in its terminal title, like tmux's `automatic-rename`         |
+| What           | Where it shows                                 | Value                                                                                                                     |
+| -------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `$idx` token   | Spaces and Agents rows (`[ui.sidebar.*].rows`) | The row's 1-based position, which is what `prefix+w` + digit, `switch_workspace`, and `focus_agent` jump to               |
+| `$title` token | Agents rows                                    | The pane's terminal title; pi's `π - <session> - <dir>` becomes `<session>`                                               |
+| Tab labels     | The tab bar                                    | `<position>:<name>`, like tmux's `#I:#W`; the name is the tab's agent session, the program in its title, or one you typed |
 
 Herdr has no built-in index token and has declined to add one (herdrdev/herdr#2046, #3958), so the numbers come from a plugin or not at all.
 
@@ -40,18 +40,23 @@ A daemon is needed rather than the manifest's `[[events]]` hooks because swappin
 
 **Titles.** Pi titles its terminal `π - <session> - <dir>`, or `π - <dir>` while the session is unnamed, and that string is not configurable. `$title` is the session name alone, empty while unnamed, so the row disappears rather than repeating the directory. For other agents `$title` is the stripped terminal title unchanged. Pi's title is left alone at the source, so the tmux `automatic-rename-format` on the Mac, which matches the `π -` prefix, keeps working.
 
-**Tabs.** A tab is named after its first agent pane, else its first pane with a title. Pi panes contribute their session name, or `pi` while unnamed; other panes contribute their title up to its first separator, so `bash - ~/.dotfiles` becomes `bash`, `Yazi: notes` becomes `Yazi`, and `init.lua (~/.config/nvim) - NVIM` becomes `init.lua`. Labels are cut at 15 characters with `…`, as the tmux format did. A tab is the plugin's to name while its label is Herdr's default (its position in the workspace) or the label the plugin last wrote, which is remembered in a state file under `HERDR_PLUGIN_STATE_DIR`. Any other label was typed by hand, and the plugin never touches that tab again. Herdr has no way to drop a custom label, so a tab with nothing to say about itself is renamed back to its position number, which looks like the default.
+**Tabs.** Every label starts with the tab's position in its workspace, which is what `prefix` + digit (`switch_tab`) jumps to, so `2:bash` is the second tab. Herdr has no label format of its own, so the plugin writes the number into the label and rewrites it whenever tabs are added, closed, or moved. A tab with no name is just its number, which looks like Herdr's default.
+
+A tab is named after its first agent pane, else its first pane with a title. Pi panes contribute their session name, or `pi` while unnamed; other panes contribute their title up to its first separator, so `bash - ~/.dotfiles` becomes `bash`, `Yazi: notes` becomes `Yazi`, and `init.lua (~/.config/nvim) - NVIM` becomes `init.lua`. Automatic names are cut at 15 characters with `…`, as the tmux format did.
+
+The plugin remembers the label it last wrote to each tab in a state file under `HERDR_PLUGIN_STATE_DIR`. Any other label was typed by hand (or is Herdr's default for a new tab). The plugin keeps a typed name for good, without the index the rename prompt starts with, so editing `2:bash` to `2:notes` or to `notes` both give `2:notes`, and it keeps that name numbered as tabs move. Herdr has no way to drop a custom label, so renaming a tab to just its number hands it back to automatic naming.
 
 ## Limitations
 
 - Numbers follow the "grouped" agent order. Clicking the Agents header switches the panel to "priority", which both the panel and the agent shortcuts follow but the numbers do not. Click it back. The same applies to plugins that filter or sort the panel through `agent.view.set`; none are installed here.
 - A collapsed worktree group hides its worktrees in the Spaces panel, but Herdr does not expose that per-client state, so workspace numbers below a collapsed group run ahead of the sidebar by the number of hidden rows.
-- Herdr forgets tokens on a server restart; the startup hook publishes them again. Tab labels persist with the session, and so does the plugin's record of which tabs it named.
+- Herdr forgets tokens on a server restart; the startup hook publishes them again. Tab labels persist with the session, and so does the plugin's record of the labels it wrote and the names you typed.
+- Herdr's `{tab}` token in `window_title` is the label, so the window title includes the number too: `host: .dotfiles · 2:bash`.
 - Only pi's title format is parsed. Other agents' titles are passed through as they are.
 
 ## Tests
 
-`tests/test_labels.py` checks the pure functions, then starts a throwaway headless Herdr session, starts the daemon the way the startup hook does, changes the layout through the CLI and checks the numbers, titles, and tab labels it publishes, including that a tab named by hand is left alone and that the daemon exits when the server stops. When `pi` is on `PATH` it also starts a real pi agent, offline and with a scratch session directory, to check agent numbering. It never touches the default session.
+`tests/test_labels.py` checks the pure functions, then starts a throwaway headless Herdr session, starts the daemon the way the startup hook does, changes the layout through the CLI and checks the numbers, titles, and tab labels it publishes, including that a tab named by hand keeps its name, gets renumbered, and can be handed back, and that the daemon exits when the server stops. When `pi` is on `PATH` it also starts a real pi agent, offline and with a scratch session directory, to check agent numbering. It never touches the default session.
 
 ```sh
 uv run --no-project tests/test_labels.py

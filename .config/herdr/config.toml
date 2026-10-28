@@ -3,7 +3,7 @@ onboarding = false
 # tmux session -> herdr workspace, tmux window -> herdr tab, tmux pane -> herdr pane
 # Two plugins beside this file add what Herdr lacks: lastfocus provides
 # prefix+; / l / L (lastfocus/README.md); labels provides the $idx and $title
-# sidebar tokens and tmux-style automatic tab names (labels/README.md).
+# sidebar tokens and numbered, tmux-style tab names like 2:bash (labels/README.md).
 
 [theme]
 # Text, accent, and status colors follow Kitty's ANSI Everforest palette. The

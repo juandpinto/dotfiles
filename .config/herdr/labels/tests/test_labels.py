@@ -143,6 +143,20 @@ check(
     labels.token_patch({"idx": "1", "title": "old"}, {"idx": "1", "title": ""}),
     {"title": None},
 )
+check(
+    "a named tab leads with its position", labels.numbered(2, "bash"), "2:bash"
+)
+check(
+    "a tab without a name is just its position", labels.numbered(1, None), "1"
+)
+check("a typed name keeps no index", labels.typed_name("2:notes "), "notes")
+check("a typed name without an index", labels.typed_name("work"), "work")
+check("a bare number is no name", labels.typed_name("3"), "")
+check(
+    "a name that starts with digits",
+    labels.typed_name("2024 plan"),
+    "2024 plan",
+)
 
 
 # %%
@@ -289,7 +303,8 @@ try:
         ),
     )
     snap = wait_for(
-        "a hand-named tab keeps its name", lambda s: tab_label(s, t3) == "mine"
+        "a hand-named tab keeps its name, numbered",
+        lambda s: tab_label(s, t3) == "3:mine",
     )
     print(
         f"     default-labelled tabs: {tab_label(snap, t1)!r}, {tab_label(snap, t2)!r}"
@@ -298,7 +313,7 @@ try:
     set_title(p1, "bash - ~/x")
     wait_for(
         "a tab is named after its shell's title",
-        lambda s: tab_label(s, t1) == "bash",
+        lambda s: tab_label(s, t1) == "1:bash",
     )
     # bash retitles at every prompt; plain sh leaves a cleared title alone.
     cli("pane", "run", p1, "exec sh")
@@ -310,12 +325,31 @@ try:
     )
 
     cli("tab", "rename", t1, "work")
+    wait_for(
+        "a tab renamed by hand is numbered",
+        lambda s: tab_label(s, t1) == "1:work",
+    )
     set_title(p1, "nvim")
     time.sleep(1.5)
     check(
-        "renaming a tab by hand takes it away from the plugin",
+        "renaming a tab by hand takes its name away from the plugin",
         tab_label(snapshot(), t1),
-        "work",
+        "1:work",
+    )
+    cli("tab", "rename", t1, "1:notes")
+    wait_for(
+        "the index left in the rename prompt is not doubled",
+        lambda s: tab_label(s, t1) == "1:notes",
+    )
+    cli("tab", "rename", t1, "1")
+    wait_for(
+        "renaming a tab to its number hands it back to the plugin",
+        lambda s: tab_label(s, t1) == "1:nvim",
+    )
+    cli("tab", "close", t2)
+    wait_for(
+        "closing a tab renumbers the rest",
+        lambda s: tab_label(s, t3) == "2:mine",
     )
 
     cli("workspace", "close", w1)
@@ -354,10 +388,10 @@ try:
         )
         if started.get("result"):
             snap = wait_for(
-                "the agent is numbered and its tab is named 'pi'",
+                "the agent is numbered and its tab is named '2:pi'",
                 lambda s: (
                     tokens(s, "panes", agent_pane).get("idx") == "1"
-                    and tab_label(s, tab["tab"]["tab_id"]) == "pi"
+                    and tab_label(s, tab["tab"]["tab_id"]) == "2:pi"
                 ),
                 timeout=20,
             )

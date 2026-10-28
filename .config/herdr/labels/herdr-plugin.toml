@@ -2,7 +2,7 @@ id = "labels"
 name = "Labels"
 version = "0.1.0"
 min_herdr_version = "0.9.1"
-description = "Sidebar numbers, clean pi titles, and tmux-style automatic tab names"
+description = "Sidebar numbers, clean pi titles, and numbered, tmux-style automatic tab names"
 platforms = ["linux", "macos"]
 
 # One daemon per Herdr server. Herdr runs this after the session is restored
