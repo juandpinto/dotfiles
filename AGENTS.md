@@ -56,10 +56,10 @@ Configuration validation and Linux migration notes live in `platforms/omarchy/`.
   cannot accidentally become a `~/platforms` directory on the Mac.
 - Herdr is shared by both machines: `.config/herdr/config.toml` (tmux-style
   keys, Everforest light/dark overrides) and the `.config/herdr/lastfocus/`
-  plugin. `~/.config/herdr` is Herdr's runtime directory, so only those two
-  entries are linked into it (Stow on the Mac, `link.sh` on Linux), and the
-  plugin is registered by path once per machine with
-  `herdr plugin link ~/.dotfiles/.config/herdr/lastfocus`. See its README.
+  and `.config/herdr/labels/` plugins. `~/.config/herdr` is Herdr's runtime
+  directory, so only those three entries are linked into it (Stow on the Mac,
+  `link.sh` on Linux), and each plugin is registered by path once per machine
+  with `herdr plugin link ~/.dotfiles/.config/herdr/<plugin>`. See their READMEs.
 - The four mail account configs (`aerc/accounts.conf`, `isyncrc`, `msmtp/config`, `notmuch/default/config`) contain email addresses and logins, so they live in the **private companion repo** `~/.dotfiles-private` (same `omarchy/home/` layout; `DOTFILES_PRIVATE_DIR` overrides the path), never in this public repo. `link.sh` links them when present; `.gitignore` blocks their public paths. Keep docs here free of real addresses too (use `<icloud-login>`-style placeholders).
 - `link.sh` walks overlay roots with `find` (so uncommitted authored files still link) but prunes `__pycache__`/`.git`. Directory links, not per-file links: Omarchy theme dirs, our `jdpinto.*` plugin clones, Keystroke extensions, and `~/.config/kanata`. Everything else links file by file so real directories (`~/.config/aerc`, `~/.config/hypr`, `~/.local/share/applications`) can mix our links with Omarchy-managed files.
 - Never hardcode `/home/<user>` in overlay files; use `os.getenv("HOME")` in Hyprland Lua and `$HOME`/`%h` elsewhere (strata's installer once wrote absolute paths into `bindings.lua`; they were replaced).

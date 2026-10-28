@@ -1,7 +1,9 @@
 onboarding = false
 # Native tmux command keys layered over Herdr defaults. Shared by Linux and macOS.
 # tmux session -> herdr workspace, tmux window -> herdr tab, tmux pane -> herdr pane
-# The lastfocus plugin beside this file provides prefix+; / l / L (see lastfocus/README.md).
+# Two plugins beside this file add what Herdr lacks: lastfocus provides
+# prefix+; / l / L (lastfocus/README.md); labels provides the $idx and $title
+# sidebar tokens and tmux-style automatic tab names (labels/README.md).
 
 [theme]
 # Text, accent, and status colors follow Kitty's ANSI Everforest palette. The
@@ -85,6 +87,14 @@ rename_workspace = ["prefix+$", "prefix+shift+w"]
 previous_workspace = "prefix+("
 next_workspace = "prefix+)"
 
+# Agents, in Agents-panel order; the labels plugin shows that order as numbers.
+# Not shift+1..9 for the jump: shift+4/5/7/9 arrive as $ % & ( and would run
+# the tmux bindings above instead. { } are tmux's swap-pane, moved to
+# shift+arrows here, so they are free.
+previous_agent = "prefix+{"
+next_agent = "prefix+}"
+focus_agent = "prefix+alt+1..9"
+
 # Preserve Herdr actions displaced by tmux's s (picker) and o (cycle pane).
 settings = "prefix+shift+s"
 open_notification_target = "prefix+shift+o"
@@ -142,10 +152,28 @@ tab_bar_right = [{ type = "zoom" }, { type = "hostname" }]
 # and it resolves on the server so remote sessions name the remote host.
 window_title = "{hostname}: {workspace} · {tab}"
 
-# Keep project/tab identity stable; display Pi's changing conversation title here.
+# Distinct glyphs per agent state rather than same-shape colored dots.
 status_indicators = "symbols"
+
+# The agent shortcuts above and the labels plugin's numbers follow the Agents
+# panel in this order. Clicking the panel header switches it to "priority"
+# (saved in Herdr's client preferences, not here), which reorders agents as
+# their state changes and makes the numbers stale; click it back to "grouped".
+agent_panel_sort = "spaces"
+
+# Sidebar rows. $idx and $title come from the labels plugin: the row's position
+# (what prefix+w digit, and prefix+alt+digit, jump to) and the terminal title
+# without pi's "π - " prefix and " - <dir>" suffix. Herdr puts " · " between
+# tokens except after state_icon, so a row reads "2 · ● name".
+[ui.sidebar.spaces]
+rows = [["$idx", "state_icon", "workspace"], ["branch", "git_status"]]
+
+[ui.sidebar.agents]
+rows = [["$idx", "state_icon", "machine", "workspace", "tab"], ["agent"]]
+
+# Pi tabs are named after this same session title, so the tab is left out.
 [ui.sidebar.agents.rows_by_agent]
-pi = [["state_icon", "agent", "state_text"], ["terminal_title_stripped"], ["workspace", "tab"]]
+pi = [["$idx", "state_icon", "agent", "state_text"], ["$title"], ["workspace"]]
 
 [ui.toast]
 delivery = "system"

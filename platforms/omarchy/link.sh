@@ -22,8 +22,10 @@ for relative in .config/nvim .config/shell .config/stylua .config/ruff .config/y
     link_file "$repo/$relative" "$relative"
 done
 # Herdr: ~/.config/herdr is Herdr's runtime directory (sockets, logs, session
-# state), so only the shared config file is linked into it. The lastfocus plugin
-# beside it is registered by path, once: herdr plugin link ~/.dotfiles/.config/herdr/lastfocus
+# state), so only the shared config file is linked into it. The lastfocus and
+# labels plugins beside it are registered by path, once each:
+#   herdr plugin link ~/.dotfiles/.config/herdr/lastfocus
+#   herdr plugin link ~/.dotfiles/.config/herdr/labels
 link_file "$repo/.config/herdr/config.toml" .config/herdr/config.toml
 # Mail: the aerc keybindings/query map/stylesets, the w3m keymap and the
 # platform-neutral sync/filing helpers are shared with the Mac. The

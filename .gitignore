@@ -9,11 +9,12 @@
 __pycache__/
 .ruff_cache/
 # Herdr's runtime directory is ~/.config/herdr. Only config.toml and the
-# lastfocus plugin are ours; never commit sockets, logs, or session state that
-# would land here if Stow folded the directory into the repo.
+# lastfocus and labels plugins are ours; never commit sockets, logs, or session
+# state that would land here if Stow folded the directory into the repo.
 /.config/herdr/*
 !/.config/herdr/config.toml
 !/.config/herdr/lastfocus/
+!/.config/herdr/labels/
 # Mail account configs carry email addresses/logins; they live in the private
 # companion repo (~/.dotfiles-private), never here. See platforms/omarchy/mail.md.
 platforms/omarchy/home/.config/aerc/accounts.conf

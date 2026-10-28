@@ -6,7 +6,7 @@ Linux uses Herdr as a trial while retaining tmux. Shared Neovim changes preserve
 
 Install the official managed hook with `herdr integration install pi`. Herdr owns `~/.pi/agent/extensions/herdr-agent-state.ts`; it is not an authored dotfiles link. It reports working/settled lifecycle and resumable conversation references over a local socket. Explicit blocked states require cooperating extensions; screen detection remains relevant for custom approval dialogs. Existing Pi sessions need `/reload`; fresh sessions discover the hook automatically.
 
-Only `~/.config/herdr/config.toml` is linked, from the shared `.config/herdr/config.toml` source used by both Mac and Linux. The old overlay source path remains a compatibility symlink so existing Linux links keep working until `link.sh` is rerun. Pi-specific sidebar rows show agent/state, the existing terminal title, and workspace/tab identity. Herdr sockets, logs, session layouts, histories, and credentials stay local. The host terminal title includes the active tab. No automatic tab-renaming hook is introduced.
+Only `~/.config/herdr/config.toml` is linked, from the shared `.config/herdr/config.toml` source used by both Mac and Linux. The old overlay source path remains a compatibility symlink so existing Linux links keep working until `link.sh` is rerun. Pi-specific sidebar rows show the row's number and agent/state, the pi session name (the terminal title without its `π -` prefix and directory suffix), and the workspace. Herdr sockets, logs, session layouts, histories, and credentials stay local. The host terminal title includes the active tab. Tabs are named automatically, tmux-style, by the shared [labels plugin](../../.config/herdr/labels/README.md), which also supplies the sidebar numbers and pi titles; it reacts to Herdr's events rather than polling.
 
 ## Neovim and persistent processes
 
@@ -31,7 +31,7 @@ The `jdpinto.herdr` wrapper inherits the installed `jankeesvw.herdr` UI and over
 
 ## Blur and active border
 
-Kitty retains opacity 0.93 and requests blur with `background_blur 10`. On Hyprland, the compositor determines actual blur strength: size 3, two passes, restricted to Kitty and the Herdr terminal app-id. Other applications retain their previous no-blur behavior. This is a gentle approximation, not a claim that Wayland and macOS blur-radius units are identical.
+Kitty retains opacity 0.93 and requests blur with `background_blur 10`. On Hyprland, the compositor determines actual blur strength: size 4, two passes, restricted to Kitty and the app-ids Omarchy's launchers give terminal windows (`org.omarchy.*` such as Herdr, Yazi and btop, and `TUI.*`). Other applications retain their previous no-blur behavior. This is a gentle approximation, not a claim that Wayland and macOS blur-radius units are identical.
 
 The user look-and-feel override preserves rounding 8 and inactive dimming 0.15. Both normal and grouped active borders use the Mac's exact red `#e67e80`; inactive borders are transparent. Hyprland's native `w[1]` selector removes borders from single-window workspaces. Multi-window geometry remains stable when focus moves; no event watcher is needed. Existing gaps and border thickness are retained.
 
