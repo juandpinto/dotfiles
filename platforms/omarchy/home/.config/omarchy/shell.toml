@@ -3,7 +3,9 @@
 [bar]
 # Kitty's background_opacity, so the bar and terminals read as one material.
 background-alpha = 0.93
-size-horizontal = 32
+# The island's height. Workspace tiles are 8 less, around 14-pixel app icons;
+# Omarchy's default is 26.
+size-horizontal = 28
 scale-with-font = false
 
 # Read by our island bar (jdpinto.island-bar), not by Omarchy itself.

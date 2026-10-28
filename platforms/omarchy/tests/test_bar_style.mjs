@@ -1,18 +1,21 @@
 // Read-only checks; --live additionally inspects the current Omarchy session.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const overlay = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(overlay, 'home/.config');
-const patches = ['workspace-icons-commons.patch', 'workspace-icons-rainbow-mono.patch']
+const patches = ['workspace-icons-commons.patch', 'workspace-icons-rainbow-mono.patch', 'workspace-icons-kitty-probe.patch',
+    'workspace-icons-inactive-tiles.patch', 'workspace-icons-icon-per-window.patch']
     .map(name => join(overlay, 'patches', name));
 const style = readFileSync(join(source, 'omarchy/shell.toml'), 'utf8');
 assert.match(style, /^\[bar\]$/m);
-assert.match(style, /^size-horizontal = 32$/m);
+// The island's height: tiles are 8 less, around 14-pixel app icons, so keep room for them.
+const barSize = Number(style.match(/^size-horizontal = (\d+)$/m)[1]);
+assert.ok(barSize >= 24 && barSize <= 40, `size-horizontal ${barSize}`);
 assert.match(style, /^scale-with-font = false$/m);
 assert.doesNotMatch(style, /^(background|text|active)\s*=/m, 'Colors must remain theme-owned');
 // The bar is the same translucent material as the terminal.
@@ -51,12 +54,20 @@ const configuredTopGap = Number(execFileSync('lua', ['-', join(source, 'hypr/loo
 assert.ok(Number.isFinite(configuredTopGap), 'looknfeel.lua sets the top window gap');
 console.log('PASS authored bar dimensions, theme ownership, and targeted layer blur');
 
-// Vendored sketchybar-app-font glyphs: pinned, well-formed, black-on-transparent
-// SVGs, every one referenced by the mapping script and nothing else inside.
+// Vendored monochrome glyphs: sketchybar-app-font at the top level, Material
+// Design Icons in mdi/ and Simple Icons in simple-icons/, each pinned, with the
+// MDI license beside its icons. All well-formed, black-on-transparent SVGs,
+// every one referenced by the mapping script and nothing else inside.
 const glyphDir = join(source, 'omarchy/app-glyphs');
 assert.match(readFileSync(join(glyphDir, 'UPSTREAM_COMMIT'), 'utf8').trim(), /^[0-9a-f]{40}$/);
-const glyphs = readdirSync(glyphDir).filter(name => name.endsWith('.svg'));
+for (const set of ['mdi', 'simple-icons']) {
+    assert.match(readFileSync(join(glyphDir, set, 'UPSTREAM_VERSION'), 'utf8').trim(), /^\d+\.\d+\.\d+$/, set);
+}
+assert.match(readFileSync(join(glyphDir, 'mdi/LICENSE'), 'utf8'), /# Icons: Apache 2\.0/);
+const glyphFiles = readdirSync(glyphDir, { recursive: true }).filter(name => statSync(join(glyphDir, name)).isFile()).sort();
+const glyphs = glyphFiles.filter(name => name.endsWith('.svg'));
 assert.ok(glyphs.length >= 20);
+assert.ok(glyphs.every(name => /^((mdi|simple-icons)\/)?[a-z0-9-]+\.svg$/.test(name)), 'Glyphs sit in a known source directory');
 for (const name of glyphs) {
     const svg = readFileSync(join(glyphDir, name), 'utf8');
     assert.match(svg, /^\s*<svg[\s>]/, name);
@@ -64,7 +75,8 @@ for (const name of glyphs) {
     assert.doesNotMatch(svg, /fill="#(?!0{3,6}")[0-9a-fA-F]{3,6}"|fill="(?!none|black)[a-z]+"|<image|<script/i,
         `${name} must stay a single black glyph`);
 }
-assert.deepEqual(readdirSync(glyphDir).filter(name => !name.endsWith('.svg')), ['UPSTREAM_COMMIT']);
+assert.deepEqual(glyphFiles.filter(name => !name.endsWith('.svg')),
+    ['UPSTREAM_COMMIT', 'mdi/LICENSE', 'mdi/UPSTREAM_VERSION', 'simple-icons/UPSTREAM_VERSION']);
 const script = join(overlay, 'home/.local/bin/bar-app-glyphs');
 execFileSync('bash', ['-n', script]);
 const mapping = readFileSync(script, 'utf8').match(/^mapping='\n([\s\S]*?)'$/m)[1].trim().split('\n')
@@ -76,9 +88,14 @@ for (const [key, glyph, extra] of mapping) {
 }
 assert.deepEqual(new Set(mapping.map(([, glyph]) => `${glyph}.svg`)), new Set(glyphs), 'No unused glyphs');
 assert.equal(new Set(mapping.map(([key]) => key)).size, mapping.length, 'No duplicate classes');
-for (const [key, glyph] of [['kitty', 'kitty'], ['brave-origin', 'brave'], ['nvim', 'neovim'], ['herdr', 'herdr']]) {
+for (const [key, glyph] of [['kitty', 'kitty'], ['brave-origin', 'brave'], ['nvim', 'neovim'], ['herdr', 'herdr'],
+    ['brave-music.apple.com__-Default', 'music'], ['aerc', 'mdi/email-outline'], ['pi', 'mdi/pi']]) {
     assert.ok(mapping.some(entry => entry[0] === key && entry[1] === glyph), key);
 }
+// Omarchy web apps open in the default browser, Brave Origin; a class for
+// another browser never matches (Apple Music was keyed as `chrome-` and fell
+// back to its tinted launcher icon).
+for (const [key] of mapping.filter(([key]) => key.endsWith('-Default'))) assert.match(key, /^brave-[^_]+__/, key);
 const fakeConfig = mkdtempSync(join(tmpdir(), 'bar-app-glyphs.'));
 cpSync(glyphDir, join(fakeConfig, 'omarchy/app-glyphs'), { recursive: true });
 const produced = JSON.parse(execFileSync('bash', [script, 'json'], { encoding: 'utf8', env: { ...process.env, XDG_CONFIG_HOME: fakeConfig } }));
@@ -93,6 +110,23 @@ assert.match(rainbow, /\+\s+readonly property bool rainbow: boolOption\("rainbow
 assert.match(rainbow, /\+\s+readonly property bool isMono: String\(group\.source \|\| ""\)\.indexOf\("mono:"\) === 0/);
 assert.match(rainbow, /\+\s+brightness: root\.isMono \? 1 :/);
 assert.match(rainbow, /\+\s+"rainbowWorkspaces": false$/m, 'Rainbow is opt-in by default');
+// Both terminal probes look past children without a tty (Kitty's `kitten __atexit__`).
+const kittyProbe = readFileSync(patches[2], 'utf8');
+assert.match(kittyProbe, /^\+    for child in children:$/m);
+assert.match(kittyProbe, /^\+        if tpgid > 0:$/m);
+assert.match(kittyProbe, /^\+    \+ ' {2}for child in \$\(cat \/proc\/"\$pid"\/task\/\*\/children 2>\/dev\/null\); do\\n'$/m);
+// Inactive tiles: an option, on by default (upstream's look), that drops the
+// faint fill behind unfocused workspaces; hover keeps its highlight.
+const inactiveTiles = readFileSync(patches[3], 'utf8');
+assert.match(inactiveTiles, /^\+\s+readonly property bool inactiveTiles: boolOption\("inactiveTiles", true\)$/m);
+assert.match(inactiveTiles, /^\+\s+"inactiveTiles": true,$/m, 'Inactive tiles stay on by default');
+assert.match(inactiveTiles, /^\+.*hovered \? 0\.12 : \(\(occupied \|\| specialOpen\) && panel\.inactiveTiles \? 0\.07 : 0\)\)$/m);
+// Icon per window: an option, grouped by app by default (upstream's look),
+// that gives each window its own icon, as the Mac bar does.
+const perWindow = readFileSync(patches[4], 'utf8');
+assert.match(perWindow, /^\+\s+readonly property bool groupApps: boolOption\("groupApps", true\)$/m);
+assert.match(perWindow, /^\+\s+"groupApps": true,$/m, 'Grouping stays on by default');
+assert.match(perWindow, /^\+\s+var groupKey = root\.groupApps \? icon : icon \+ "\\n" \+ info\.address$/m);
 console.log('PASS vendored glyphs, mapping script, and recorded patches');
 
 // The front-app custom module: the bar's documented module contract, muted
@@ -151,7 +185,7 @@ if (process.argv.includes('--live')) {
         'flush-bar would override the window gap below the bar');
     const gapsOut = json('hyprctl', ['-j', 'getoption', 'general:gaps_out']).css.trim().split(/\s+/).map(Number);
     assert.equal(gapsOut[0], configuredTopGap, 'The configured top window gap is in effect');
-    assert.ok(json('hyprctl', ['-j', 'monitors']).every(monitor => monitor.reserved[1] === 32 + islandValues['edge-gap']),
+    assert.ok(json('hyprctl', ['-j', 'monitors']).every(monitor => monitor.reserved[1] === barSize + islandValues['edge-gap']),
         'Windows reserve the island plus its gap to the screen edge');
     const entries = Object.values(config.bar.layout).flat();
     const widget = entries.find(entry => entry.id === pluginId);
@@ -161,7 +195,8 @@ if (process.argv.includes('--live')) {
     for (const [key, value] of Object.entries({
         barStyle: 'tiles', activeTile: 'accent', coloredIcons: false, tintStyle: 'normal',
         showNumbers: true, maxIcons: 3, showCounts: true, showTerminalPrograms: true,
-        hideEmpty: true, showSpecial: false, showPreview: false, rainbowWorkspaces: true,
+        hideEmpty: true, showSpecial: false, showPreview: false, rainbowWorkspaces: true, inactiveTiles: false,
+        groupApps: false,
     })) assert.equal(widget[key], value, key);
     assert.deepEqual(widget.iconOverrides, JSON.parse(command('bar-app-glyphs', ['json'])),
         'Live overrides must match the mapping script');
@@ -179,11 +214,13 @@ if (process.argv.includes('--live')) {
     const pristine = mkdtempSync(join(tmpdir(), 'workspace-icons-pristine.'));
     execFileSync('bash', ['-c', 'git -C "$1" archive HEAD | tar -x -C "$2" && git -C "$2" init -q', '-', plugin, pristine]);
     for (const patch of patches) command('git', ['-C', pristine, 'apply', patch]);
-    for (const file of ['Workspaces.qml', 'WorkspaceButton.qml', 'WorkspacePreview.qml', 'AppIconButton.qml', 'manifest.json']) {
+    for (const file of ['Workspaces.qml', 'WorkspaceButton.qml', 'WorkspacePreview.qml', 'AppIconButton.qml', 'manifest.json',
+        'scripts/window-probe']) {
         assert.equal(readFileSync(join(plugin, file), 'utf8'), readFileSync(join(pristine, file), 'utf8'), file);
     }
     assert.deepEqual(command('git', ['-C', plugin, 'status', '--short']).trim().split('\n').map(line => line.trim()).sort(),
-        ['M AppIconButton.qml', 'M WorkspaceButton.qml', 'M WorkspacePreview.qml', 'M Workspaces.qml', 'M manifest.json']);
+        ['M AppIconButton.qml', 'M WorkspaceButton.qml', 'M WorkspacePreview.qml', 'M Workspaces.qml', 'M manifest.json',
+            'M scripts/window-probe']);
     for (const file of ['Workspaces.qml', 'WorkspacePreview.qml']) {
         assert.doesNotMatch(readFileSync(join(plugin, file), 'utf8'), /(?<![\w.])Color\./);
     }
@@ -199,6 +236,7 @@ if (process.argv.includes('--live')) {
             assert.ok(workspace.focused || workspace.apps.length > 0, 'Hide empty workspaces');
             for (const app of workspace.apps) {
                 assert.ok(app.icon && app.count > 0);
+                assert.equal(app.count, 1, 'An icon per window, never a count');
                 if (app.icon.startsWith('mono:')) {
                     monoIcons += 1;
                     assert.match(app.icon, /^mono:file:\/\/\/.*\.svg$/);
@@ -208,6 +246,13 @@ if (process.argv.includes('--live')) {
         }
     }
     assert.ok(monoIcons > 0, 'At least one open app resolves to a vendored glyph');
+    // Every Kitty window reports the program in its foreground, not Kitty's tty-less helper.
+    const probe = execFileSync('/usr/bin/python3', [join(plugin, 'scripts/window-probe')], { input: '\n', encoding: 'utf8', timeout: 15000 });
+    const foreground = Object.fromEntries([...probe.matchAll(/^P (\d+) (\S+)/gm)].map(match => [match[1], match[2]]));
+    for (const client of json('hyprctl', ['-j', 'clients']).filter(client => client.class === 'kitty')) {
+        assert.ok(foreground[client.pid] && foreground[client.pid] !== 'kitten', `Kitty ${client.pid}: ${foreground[client.pid]}`);
+    }
+    assert.ok(!existsSync(join(plugin, 'scripts/__pycache__')), 'Running the probe leaves the checkout clean');
     const activeWorkspace = json('hyprctl', ['-j', 'activeworkspace']);
     assert.ok(states.some(state => state.workspaces.some(workspace =>
         workspace.key === String(activeWorkspace.id) && workspace.focused)), 'Focus matches Hyprland');
@@ -219,7 +264,7 @@ if (process.argv.includes('--live')) {
     assert.ok(frontAppSlot && frontAppSlot.width > 0, 'The focused app name is shown');
     assert.ok(frontAppSlot.x > left.find(slot => slot.id === pluginId).x, 'App name is right of the workspaces');
     assert.ok(right.some(slot => slot.id === 'omarchy.clock'));
-    assert.ok(geometry.every(slot => slot.height === 32));
+    assert.ok(geometry.every(slot => slot.height === barSize), `Widgets are ${barSize}px tall`);
     assert.ok(geometry.every(slot => slot.y === islandValues['edge-gap']), 'Widgets sit inside the island, past the edge gap');
     assert.ok(Math.max(...left.map(slot => slot.x + slot.width)) < Math.min(...right.map(slot => slot.x)),
         'Workspace and status sections must not overlap');
@@ -227,5 +272,5 @@ if (process.argv.includes('--live')) {
     const warnings = logs.split('\n').filter(line => /WARN|ERROR/.test(line)
         && (line.includes(pluginId) || line.includes('front-app') || line.includes('island-bar')));
     assert.deepEqual(warnings, [], 'No Workspace Icons, front-app, or island bar warnings in the current shell log');
-    console.log('PASS live island bar, widget settings, glyph overrides, rainbow option, patched checkout, app name, now playing, geometry, clock position, and clean log');
+    console.log('PASS live island bar, widget settings, glyph overrides, rainbow option, patched checkout, Kitty foreground programs, app name, now playing, geometry, clock position, and clean log');
 }

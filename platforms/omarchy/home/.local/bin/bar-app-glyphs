@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 # Map window classes and terminal programs to the monochrome app glyphs under
-# ~/.config/omarchy/app-glyphs (sketchybar-app-font SVGs), as Workspace Icons
-# `iconOverrides`. `mono:` makes the plugin draw them exactly in its tint color.
+# ~/.config/omarchy/app-glyphs, as Workspace Icons `iconOverrides`. `mono:` makes
+# the plugin draw them exactly in its tint color. Top-level glyphs are the Mac
+# bar's sketchybar-app-font; apps it has no fitting glyph for use Material Design
+# Icons (mdi/) or, for brands, Simple Icons (simple-icons/). Each line is
+# `<class or program> <glyph path without .svg>`.
 set -euo pipefail
 glyphs="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/app-glyphs"
 # Omarchy web apps open in the default browser as `<browser>-<host>__<path>-Default`,
 # with `/` in the path written as `_`; ours is Brave Origin.
 mapping='
 brave-origin brave
+chromium google-chrome
 kitty kitty
 com.mitchellh.ghostty ghostty
 foot terminal
 footclient terminal
-chrome-music.apple.com__-Default music
+brave-music.apple.com__-Default music
+brave-app.todoist.com__-Default todoist
+brave-app.slack.com__client-Default slack
+brave-app.hey.com__-Default simple-icons/hey
 brave-discord.com__channels_@me-Default discord
 brave-web.whatsapp.com__-Default whatsapp
 brave-youtube.com__-Default youtube
@@ -28,17 +35,39 @@ obsidian obsidian
 md.obsidian.Obsidian obsidian
 1Password 1password
 mpv mpv
+libreoffice-startcenter libreoffice
 libreoffice-writer libreoffice
 libreoffice-calc libreoffice
 libreoffice-impress libreoffice
+libreoffice-draw libreoffice
+libreoffice-base libreoffice
+libreoffice-math libreoffice
 com.moonlight_stream.Moonlight moonlight
 Org.localsend.localsend_app localsend
+org.gnome.Nautilus mdi/folder
+org.gnome.Papers mdi/file-document
+org.gnome.Evince mdi/file-document
+imv mdi/image
+org.gnome.DiskUtility mdi/harddisk
+omacalc calculator
+omacut mdi/movie-open-edit
+omawrite mdi/fountain-pen-tip
+ai.storyteller.pdfcraft mdi/file-pdf-box
+ai.storyteller.photocraft mdi/image-edit
+ai.storyteller.wordcraft mdi/file-document-edit
+com.github.xournalpp.xournalpp mdi/draw-pen
 nvim neovim
 claude claude
+codex codex
 docker docker
 lazydocker docker
 yazi yazi
 herdr herdr
+aerc mdi/email-outline
+btop activity-monitor
+cliamp mdi/headphones
+dua mdi/chart-donut
+pi mdi/pi
 '
 json() {
     local key glyph

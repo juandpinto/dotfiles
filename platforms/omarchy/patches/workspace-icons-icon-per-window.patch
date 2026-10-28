@@ -1,0 +1,68 @@
+diff --git i/Workspaces.qml w/Workspaces.qml
+index 7c26af3..239361d 100644
+--- i/Workspaces.qml
++++ w/Workspaces.qml
+@@ -87,6 +87,8 @@ Panel {
+   readonly property bool showNumbers: boolOption("showNumbers", true)
+   readonly property bool showTerminalPrograms: boolOption("showTerminalPrograms", true)
+   readonly property bool showCounts: boolOption("showCounts", true)
++  // Off: an icon per window instead of one per app (counts then stay at 1).
++  readonly property bool groupApps: boolOption("groupApps", true)
+   readonly property bool showUrgent: boolOption("showUrgent", true)
+   // Only workspaces with windows, and the one each monitor shows.
+   readonly property bool hideEmpty: boolOption("hideEmpty", false)
+@@ -1087,9 +1089,9 @@ Panel {
+     return entry && entry.name ? entry.name : (info.appId || info.initialClass || "App")
+   }
+ 
+-  // One group per distinct app (or terminal program) on the workspace, in
+-  // on-screen order: { key, source, name, count, addresses, titles, urgent,
+-  // focused, workspaceKey }.
++  // One group per distinct app (or terminal program) on the workspace, or
++  // per window with groupApps off, in on-screen order: { key, source, name,
++  // count, addresses, titles, urgent, focused, workspaceKey }.
+   function workspaceGroups(workspace) {
+     void root.iconRevision
+     if (workspace === null || !root.showIcons) return []
+@@ -1107,11 +1109,12 @@ Panel {
+       var icon = root.iconFor(info)
+       var client = root.clientInfo[info.address]
+       var at = client && client.at ? client.at : [0, 0]
+-      var group = byIcon[icon]
++      var groupKey = root.groupApps ? icon : icon + "\n" + info.address
++      var group = byIcon[groupKey]
+       if (!group) {
+-        group = { key: icon, source: icon, name: root.appName(info), count: 0, addresses: [], titles: [],
++        group = { key: groupKey, source: icon, name: root.appName(info), count: 0, addresses: [], titles: [],
+                   urgent: false, focused: false, workspaceKey: key, x: at[0], y: at[1] }
+-        byIcon[icon] = group
++        byIcon[groupKey] = group
+         groups.push(group)
+       }
+       group.count++
+diff --git i/manifest.json w/manifest.json
+index abcc5d5..a1eaca0 100644
+--- i/manifest.json
++++ w/manifest.json
+@@ -51,6 +51,7 @@
+       "pillFrame": true,
+       "activeTile": "subtle",
+       "inactiveTiles": true,
++      "groupApps": true,
+       "rainbowWorkspaces": false
+     },
+     "schema": [
+@@ -267,6 +268,13 @@
+         "defaultValue": 4,
+         "description": "One icon per distinct app, in window order."
+       },
++      {
++        "key": "groupApps",
++        "type": "boolean",
++        "label": "Group windows by app",
++        "defaultValue": true,
++        "description": "One icon per app, with a window count. Off shows an icon per window, in window order, so two terminals show two terminal icons; Icons per workspace still caps them."
++      },
+       {
+         "key": "showCounts",
+         "type": "boolean",

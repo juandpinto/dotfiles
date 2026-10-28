@@ -1,0 +1,53 @@
+diff --git i/WorkspaceButton.qml w/WorkspaceButton.qml
+index 68e3d1d..d2f40a2 100644
+--- i/WorkspaceButton.qml
++++ w/WorkspaceButton.qml
+@@ -64,7 +64,7 @@ WidgetButton {
+   readonly property bool tileShown: tiles && (occupied || focused || shownHere || urgent || specialOpen || hovered)
+   readonly property bool tileSolid: tiles && focused && (panel.activeTile !== "subtle" || panel.rainbow)
+   readonly property color tileFill: focused ? (panel.rainbow ? wsColor : panel.activeTileFill())
+-    : Qt.rgba(panel.symbolColor.r, panel.symbolColor.g, panel.symbolColor.b, hovered ? 0.12 : (occupied || specialOpen ? 0.07 : 0))
++    : Qt.rgba(panel.symbolColor.r, panel.symbolColor.g, panel.symbolColor.b, hovered ? 0.12 : ((occupied || specialOpen) && panel.inactiveTiles ? 0.07 : 0))
+   // Text and tinted icons on a solid or accent tile take a color that reads on it.
+   readonly property color tileInk: panel.contrastOn(panel.rainbow ? wsColor : panel.activeTileFill())
+   // This workspace's tint: the panel's, or its own color with the rainbow on.
+diff --git i/Workspaces.qml w/Workspaces.qml
+index c4c9a93..7c26af3 100644
+--- i/Workspaces.qml
++++ w/Workspaces.qml
+@@ -108,6 +108,9 @@ Panel {
+   // bar's text color) or "accent".
+   readonly property string activeTile: ["subtle", "solid", "accent"].indexOf(String(option("activeTile", "subtle"))) !== -1
+     ? String(option("activeTile", "subtle")) : "subtle"
++  // The faint tile behind the other workspaces with windows; off, only the
++  // active tile (and a hovered one) has a fill.
++  readonly property bool inactiveTiles: boolOption("inactiveTiles", true)
+ 
+   function activeTileFill() {
+     if (root.activeTile === "solid") return root.symbolColor
+diff --git i/manifest.json w/manifest.json
+index 5299a96..abcc5d5 100644
+--- i/manifest.json
++++ w/manifest.json
+@@ -50,6 +50,7 @@
+       "pillContent": "icons",
+       "pillFrame": true,
+       "activeTile": "subtle",
++      "inactiveTiles": true,
+       "rainbowWorkspaces": false
+     },
+     "schema": [
+@@ -77,6 +78,13 @@
+         "defaultValue": "subtle",
+         "description": "With the tiles style: the tile of the workspace you're on, brighter (subtle), in the bar's text color (solid) or in the accent color."
+       },
++      {
++        "key": "inactiveTiles",
++        "type": "boolean",
++        "label": "Inactive tiles",
++        "defaultValue": true,
++        "description": "With the tiles style: a faint tile behind the other workspaces with windows. Off leaves them on the bar itself, so only the active tile (and hover) shows."
++      },
+       {
+         "key": "pillContent",
+         "type": "enum",

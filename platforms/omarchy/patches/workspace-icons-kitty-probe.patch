@@ -1,0 +1,65 @@
+diff --git i/Workspaces.qml w/Workspaces.qml
+index 9be64dc..c4c9a93 100644
+--- i/Workspaces.qml
++++ w/Workspaces.qml
+@@ -1268,17 +1268,22 @@ Panel {
+ 
+   // The fallback without the helper. Prints the window list ("C <json>"), the
+   // monitors ("M <json>"), for each window pid the program in the foreground
+-  // of the tty its first child runs on ("P pid name exe") — for a terminal
+-  // window that is the program running in the terminal — whether a screen
+-  // recorder runs ("R 0|1"), and a stamp of the wallpaper file ("W <stamp>").
++  // on the tty of its first child that has one ("P pid name exe") — for a
++  // terminal window that is the program running in the terminal (Kitty starts
++  // a tty-less `kitten` helper before the shell) — whether a screen recorder
++  // runs ("R 0|1"), and a stamp of the wallpaper file ("W <stamp>").
+   readonly property string probeScript: 'clients=$(hyprctl clients -j 2>/dev/null) || exit 0\n'
+     + 'printf "C %s\\n" "$(jq -c \'map({a: (.address | ltrimstr("0x")), class, initialClass, initialTitle, pid, at, size,'
+     + ' ws: .workspace.id, wsName: .workspace.name, monitor, floating, fullscreen, focusHistoryID, hidden, mapped, pinned})\' <<<"$clients" | head -c 1048576)"\n'
+     + 'printf "M %s\\n" "$(hyprctl monitors -j 2>/dev/null | jq -c \'map({id, name, x, y, width, height, scale, transform, reserved})\')"\n'
+     + 'for pid in $(jq -r \'.[].pid\' <<<"$clients" | sort -u | head -n 256); do\n'
+-    + '  child=$(cat /proc/"$pid"/task/*/children 2>/dev/null | tr " " "\\n" | grep -m1 .)\n'
+-    + '  [ -n "$child" ] && stat=$(cat /proc/"$child"/stat 2>/dev/null) || continue\n'
+-    + '  set -- ${stat##*) }\n'
++    + '  set --\n'
++    + '  for child in $(cat /proc/"$pid"/task/*/children 2>/dev/null); do\n'
++    + '    stat=$(cat /proc/"$child"/stat 2>/dev/null) || continue\n'
++    + '    set -- ${stat##*) }\n'
++    + '    [ "${6:-0}" -gt 0 ] && break\n'
++    + '    set --\n'
++    + '  done\n'
+     + '  [ "${6:-0}" -gt 0 ] || continue\n'
+     + '  name=$(cat /proc/"$6"/comm 2>/dev/null)\n'
+     + '  echo "P $pid ${name// /_} $(readlink /proc/"$6"/exe 2>/dev/null)"\n'
+diff --git i/scripts/window-probe w/scripts/window-probe
+index 1e79575..77d3edf 100755
+--- i/scripts/window-probe
++++ w/scripts/window-probe
+@@ -70,16 +70,20 @@ def read(path):
+ 
+ 
+ def foreground(pid):
+-    """(name, exe) of the foreground program on the tty of pid's first child."""
++    """(name, exe) of the foreground program on the tty of pid's first child
++    that has one: Kitty starts a `kitten __atexit__` helper, without a tty,
++    before the shell."""
+     children = []
+     for task in sorted(glob.glob("/proc/%s/task/*/children" % pid)):
+         children += read(task).split()
+-    if not children:
+-        return None
+-    stat = read("/proc/%s/stat" % children[0])
+-    fields = stat[stat.rfind(") ") + 2:].split() if ") " in stat else []
+-    # state ppid pgrp session tty_nr tpgid: the tty's foreground group.
+-    tpgid = int(fields[5]) if len(fields) > 5 and fields[5].lstrip("-").isdigit() else 0
++    tpgid = 0
++    for child in children:
++        stat = read("/proc/%s/stat" % child)
++        fields = stat[stat.rfind(") ") + 2:].split() if ") " in stat else []
++        # state ppid pgrp session tty_nr tpgid: the tty's foreground group.
++        tpgid = int(fields[5]) if len(fields) > 5 and fields[5].lstrip("-").isdigit() else 0
++        if tpgid > 0:
++            break
+     if tpgid <= 0:
+         return None
+     name = read("/proc/%d/comm" % tpgid).strip().replace(" ", "_")
