@@ -33,6 +33,8 @@ const guidance = [
 	"exploration_and_reading_files",
 	"destructive_actions",
 	"subagent_usage",
+	// Online, in GitHub repositories: how to write issue and PR references.
+	"github_reference_formatting",
 ];
 const dropGuidance = (content) =>
 	guidance.reduce((text, tag) => text.replace(new RegExp(`<${tag}>[\\s\\S]*?</${tag}>\\s*`, "g"), ""), content);

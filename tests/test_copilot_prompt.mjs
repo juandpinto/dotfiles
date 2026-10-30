@@ -23,8 +23,9 @@ const repo = realpathSync(fileURLToPath(new URL("..", import.meta.url)));
 const deployed = process.env.COPILOT_HOME ?? join(homedir(), ".copilot");
 const entries = ["copilot-instructions.md", "skills", "extensions/pi-prompt"];
 const otelFile = process.argv[2] === "--otel" ? process.argv[3] : undefined;
-// Top-level prompt blocks we expect once the extension has trimmed it.
-const expectedBlocks = ["rules", "environment_context", "tools", "custom_instruction", "system_notifications", "session_context"];
+// Top-level prompt blocks we expect once the extension has trimmed it. The
+// content-exclusion policy comes from the organization and stays.
+const expectedBlocks = ["rules", "environment_context", "tools", "custom_instruction", "system_notifications", "session_context", "content_exclusion_policy"];
 const allowedTools = ["bash", "view", "edit", "create", "apply_patch", "skill"];
 let failures = 0;
 
@@ -39,28 +40,34 @@ const tokens = (text) => Math.round(text.length / 4); // rough, tokenizer-free
 function topLevelBlocks(system) {
 	const opener = /(?:^|(?<=<\/[a-z_]+>))[ \t]*<([a-z_]+)>/gm;
 	const blocks = [];
+	const loose = [];
 	let cursor = 0;
-	let loose = "";
 	for (let match; (opener.lastIndex = cursor), (match = opener.exec(system)); ) {
 		const tag = match[1];
 		const start = match.index + match[0].indexOf("<");
 		const close = system.indexOf(`</${tag}>`, start);
 		const end = close === -1 ? system.length : close + tag.length + 3;
-		loose += system.slice(cursor, start);
+		loose.push(system.slice(cursor, start));
 		blocks.push({ tag, text: system.slice(start, end) });
 		cursor = end;
 	}
-	return { blocks, loose: loose + system.slice(cursor) };
+	loose.push(system.slice(cursor));
+	return { blocks, loose: loose.map((text) => text.trim()).filter(Boolean) };
 }
 
 function printOutline(system) {
 	const { blocks, loose } = topLevelBlocks(system);
 	console.log("\nSystem prompt outline (approximate tokens):");
-	console.log(`${String(tokens(loose.trim())).padStart(7)}  (text outside blocks)`);
+	console.log(`${String(tokens(loose.join(""))).padStart(7)}  (text outside blocks)`);
+	for (const text of loose.filter((chunk) => tokens(chunk) >= 25)) {
+		console.log(`${String(tokens(text)).padStart(9)}  starting "${text.split("\n")[0].slice(0, 90)}"`);
+	}
 	for (const { tag, text } of blocks) {
 		const headings = tag === "custom_instruction" ? text.split("\n").filter((line) => /^#{1,2} /.test(line)) : [];
+		const skills = tag === "tools" ? [...text.matchAll(/<name>([^<]+)<\/name>/g)].map((match) => match[1]) : [];
+		const details = [...headings, ...(skills.length ? [`${skills.length} skills: ${skills.join(", ")}`] : [])];
 		const note = expectedBlocks.includes(tag) ? "" : "   <- unexpected";
-		console.log(`${String(tokens(text)).padStart(7)}  <${tag}>${note}${headings.length ? `: ${headings.join(" | ")}` : ""}`);
+		console.log(`${String(tokens(text)).padStart(7)}  <${tag}>${note}${details.length ? `: ${details.join(" | ")}` : ""}`);
 	}
 }
 
@@ -97,6 +104,11 @@ try {
 	settings = JSON.parse(readFileSync(join(deployed, "settings.json"), "utf8"));
 } catch {}
 check(settings.experimental === true, "experimental is enabled in ~/.copilot/settings.json", "copilot config experimental true");
+check(
+	(settings.disabledMcpServers ?? []).includes("github-mcp-server"),
+	"the built-in GitHub MCP server is disabled",
+	"copilot mcp disable github-mcp-server",
+);
 if (failures > 0) process.exit(1);
 
 // ── A real session, from its OpenTelemetry trace ────────────────────────
@@ -105,10 +117,11 @@ if (otelFile) {
 		console.log(`FAIL no trace at ${otelFile} (use the same path as COPILOT_OTEL_FILE_EXPORTER_PATH)`);
 		process.exit(1);
 	}
-	const spans = readFileSync(otelFile, "utf8")
+	const records = readFileSync(otelFile, "utf8")
 		.split("\n")
 		.filter(Boolean)
-		.map((line) => JSON.parse(line).attributes ?? {});
+		.map((line) => JSON.parse(line));
+	const spans = records.map((record) => record.attributes ?? {});
 	const calls = spans.filter((a) => a["gen_ai.operation.name"] === "chat" && a["gen_ai.system_instructions"]);
 	const call = calls[0] ?? spans.find((a) => a["gen_ai.system_instructions"] && a["gen_ai.tool.definitions"]);
 	if (!call) {
@@ -128,12 +141,16 @@ if (otelFile) {
 		const tags = [...new Set([...text.matchAll(/<([a-z_]+)>/g)].map((match) => `<${match[1]}>`))];
 		console.log(`${String(tokens(text)).padStart(7)}  ${message.role}${tags.length ? `: ${tags.join(" ")}` : ""}`);
 	}
-	const mcpServers = spans
-		.map((a) => a["github.copilot.context.mcp_server_names"])
-		.filter(Boolean)
-		.map((names) => [typeof names === "string" && names.startsWith("[") ? JSON.parse(names) : names].flat())
-		.find((names) => names.length);
-	console.log(`\nMCP servers connected: ${mcpServers?.join(", ") ?? "none"}`);
+	// Each MCP server's lifecycle: "discovered" alone means it never started.
+	const mcpStates = new Map();
+	for (const event of records.flatMap((record) => record.events ?? [])) {
+		if (event.name !== "github.copilot.mcp.server.lifecycle") continue;
+		const name = event.attributes?.["github.copilot.mcp.server.name"];
+		const state = event.attributes?.["github.copilot.mcp.server.state"];
+		if (name && state && mcpStates.get(name)?.at(-1) !== state) mcpStates.set(name, [...(mcpStates.get(name) ?? []), state]);
+	}
+	const mcpSummary = [...mcpStates].map(([name, states]) => `${name} (${states.join(" -> ")})`).join(", ");
+	console.log(`\nMCP servers: ${mcpSummary || "none"}`);
 	const input = call["gen_ai.usage.input_tokens"];
 	if (input) console.log(`Input tokens reported by the API for this call (system prompt, tools and messages): ${input}`);
 	process.exit(failures > 0 ? 1 : 0);
@@ -158,6 +175,9 @@ const scratch = mkdtempSync(join(tmpdir(), "copilot-prompt-"));
 const home = join(scratch, "home");
 mkdirSync(join(home, ".copilot", "extensions"), { recursive: true });
 mkdirSync(join(scratch, "work"));
+// A GitHub remote makes Copilot add its GitHub-specific prompt blocks too.
+spawnSync("git", ["init", "-q"], { cwd: join(scratch, "work") });
+spawnSync("git", ["remote", "add", "origin", "https://github.com/octo/example.git"], { cwd: join(scratch, "work") });
 for (const entry of entries) symlinkSync(join(deployed, entry), join(home, ".copilot", entry));
 writeFileSync(join(home, ".copilot", "settings.json"), JSON.stringify({ experimental: true }));
 

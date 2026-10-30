@@ -110,17 +110,18 @@ Until pi is approved on the work Mac, [Copilot CLI](https://docs.github.com/copi
 
 Copilot's default first request is about 15k tokens of system prompt and tool definitions (19 tools); with the extension it's about 3.5k, close to pi's 3.2k. Among the dropped guidance are GitHub's safety section, the model-specific blocks Copilot adds for Claude and GPT-5 (including "bias to action" rules that contradict our ask-when-ambiguous rule), and the Co-authored-by commit trailer. Copilot gives each model family its own editing tools: `edit` and `create` for Claude, `apply_patch` for GPT-5.
 
-`~/.copilot` is also Copilot's runtime directory (settings, trusted folders, sessions, logs), so keep it and `~/.copilot/extensions` real directories (setup step 3). If `~/.copilot/skills` already exists as a real directory, move any skills worth keeping into `.config/pi/agent/skills/` and set it aside before stowing, or Stow reports a conflict. User extensions are an experimental Copilot feature, so enable them once per machine (`settings.json` isn't tracked, because it stores trusted folders):
+`~/.copilot` is also Copilot's runtime directory (settings, trusted folders, sessions, logs), so keep it and `~/.copilot/extensions` real directories (setup step 3). If `~/.copilot/skills` already exists as a real directory, move any skills worth keeping into `.config/pi/agent/skills/` and set it aside before stowing, or Stow reports a conflict. Two settings go in `settings.json`, which isn't tracked because it stores trusted folders, so apply them once per machine. User extensions are an experimental Copilot feature, so turn those on. The extension already hides the built-in GitHub MCP server's tools, but the server still starts in GitHub repositories and adds its instructions to the prompt, so disable it too (we use `gh` instead):
 
 ```bash
 copilot config experimental true
+copilot mcp disable github-mcp-server
 ```
 
 `copilot config experimental false` turns the extension off, and Copilot goes back to its full default prompt. That's also the fix if Copilot ever refuses prompts with "failed to parse CLI system message input" after an update, which means the extension's configuration no longer matches Copilot's.
 
 ### Check the Copilot setup
 
-The check below needs no GitHub account or model, and nothing leaves the machine. It confirms the links resolve into this repo and that experimental features are on. It then runs Copilot offline against a local fake model, once for our configured `model` and once each for a Claude and a GPT-5 model, since each family gets its own prompt template. For each, it checks what Copilot would have sent: pi's intro, our `AGENTS.md`, every pi skill, an editing tool and no others beyond our list, no prompt blocks beyond the expected ones, and an estimated token count. An unexpected block after a Copilot update usually means new guidance to add to the extension's `guidance` list.
+The check below needs no GitHub account or model, and nothing leaves the machine. It confirms the links resolve into this repo and that both settings are applied. It then runs Copilot offline against a local fake model in a scratch repository with a GitHub remote, once for our configured `model` and once each for a Claude and a GPT-5 model, since each family gets its own prompt template. For each, it checks what Copilot would have sent: pi's intro, our `AGENTS.md`, every pi skill, an editing tool and no others beyond our list, no prompt blocks beyond the expected ones (an organization's content-exclusion policy is kept), and an estimated token count. An unexpected block after a Copilot update usually means new guidance to add to the extension's `guidance` list.
 
 ```bash
 node tests/test_copilot_prompt.mjs
@@ -128,7 +129,7 @@ node tests/test_copilot_prompt.mjs
 
 It runs the first `copilot` on `PATH` and prints which binary and version that is. Scripts don't see the `.zshrc` alias to Homebrew's Copilot, so if another `copilot` comes first (`type -a copilot` lists them), point it at the right one with `COPILOT_BIN=/opt/homebrew/bin/copilot`. `COPILOT_TEST_MODELS` overrides the models.
 
-Online sessions can add prompt content that offline runs never see, such as organization instructions, MCP server instructions, an attached IDE or memories. To check a real session, write its trace (including message content) to a local file, send one message, exit, and check the trace. This prints every block of the system prompt with its approximate size and the headings of each instruction file, then the context injected into the messages, the connected MCP servers, and the input token count the API reported:
+Online sessions can add prompt content that offline runs never see, such as organization instructions, MCP server instructions, an attached IDE or memories. To check a real session, write its trace (including message content) to a local file, send one message, exit, and check the trace. This prints every block of the system prompt with its approximate size and the headings of each instruction file, then the context injected into the messages, each MCP server's lifecycle (`discovered` alone means it never started), and the input token count the API reported:
 
 ```bash
 COPILOT_OTEL_FILE_EXPORTER_PATH=/tmp/copilot-otel.jsonl OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true copilot
