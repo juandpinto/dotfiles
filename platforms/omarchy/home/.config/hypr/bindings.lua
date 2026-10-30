@@ -83,12 +83,13 @@ do
 end
 -- fathom: end
 
--- >>> omamail default mail client, do not edit by hand
+-- aerc is the mail client (was: HEY's web app, then Omamail). aerc-open focuses
+-- the running aerc or starts it; it is also the mailto: handler.
 hl.unbind("SUPER + SHIFT + E")
 hl.unbind("SUPER + SHIFT + ALT + E")
-o.bind("SUPER + SHIFT + E", "Email", "omarchy-shell shell summon omamail '{}'")
-o.bind("SUPER + SHIFT + ALT + E", "New email", "omarchy-shell shell summon omamail '{\"compose\":true}'")
--- <<< omamail default mail client
+o.bind("SUPER + SHIFT + E", "Email", os.getenv("HOME") .. "/.local/bin/aerc-open")
+o.bind("SUPER + SHIFT + ALT + E", "New email",
+    os.getenv("HOME") .. "/.local/bin/aerc-open mailto:")
 
  o.bind("SUPER + SHIFT + T", "Todoist", { webapp = "https://app.todoist.com", focus = true })
 

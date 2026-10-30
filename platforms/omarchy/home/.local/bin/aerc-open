@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Focus aerc or start it in a terminal; given a mailto: link, also open a
+# composer for it. This is the mailto: handler (aerc-open.desktop) and what
+# Super+Shift+E and Super+Shift+Alt+E run.
+# Usage: aerc-open [mailto:...]
+#
+# The packaged aerc.desktop is not enough: on Hyprland, xdg-open ignores its
+# Terminal=true and would start aerc without a terminal. A running aerc
+# listens on $XDG_RUNTIME_DIR/aerc.sock, and `aerc mailto:...` hands it the
+# link, so we do that and focus its window, or start a new aerc with the link.
+set -euo pipefail
+
+url=${1:-}
+if [[ -n $url && $url != mailto:* ]]; then
+    printf 'Usage: aerc-open [mailto:...]\n' >&2
+    exit 2
+fi
+socket=${XDG_RUNTIME_DIR:-/run/user/$UID}/aerc.sock
+
+notify() { omarchy-notification-send "$@" >/dev/null 2>&1 || true; }
+
+# aerc percent-decodes the ?query but not the address before it, so
+# `mailto:jane%40example.org` would fail to parse. Decode the address here.
+if [[ $url == mailto:* ]]; then
+    to=${url#mailto:}
+    query=
+    if [[ $to == *\?* ]]; then
+        query=?${to#*\?}
+        to=${to%%\?*}
+    fi
+    to=${to//\\/\\\\}
+    to=$(sed -E 's/%([0-9A-Fa-f]{2})/\\x\1/g' <<< "$to")
+    printf -v to '%b' "$to"
+    url=mailto:$to$query
+fi
+
+# aerc 0.22 treats SIGHUP as "reload config", so closing its terminal window
+# leaves it running with no terminal, still holding the socket: links handed
+# to it would vanish. Its terminal is gone for good, so end it (SIGTERM is
+# aerc's clean quit) and let the link open a fresh aerc.
+for pid in $(pgrep -x -u "$UID" aerc || true); do
+    [[ $(readlink "/proc/$pid/fd/0" 2>/dev/null) == /dev/pts/*' (deleted)' ]] || continue
+    kill -TERM "$pid" 2>/dev/null || continue
+    for _ in {1..30}; do
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.1
+    done
+done
+
+owner=$(ss -xlpnH src "$socket" 2>/dev/null | grep -om1 'pid=[0-9]*' || true)
+owner=${owner#pid=}
+if [[ -z $owner ]]; then
+    # A service, not the default scope: xdg-open waits for its handler to exit.
+    exec uwsm-app -t service -- \
+        xdg-terminal-exec --app-id=org.omarchy.aerc -e aerc ${url:+"$url"}
+fi
+
+if [[ -n $url ]]; then
+    # Without a terminal aerc logs to stdout, and it reports a rejected link
+    # there too, as "response: <error>". The timeout guards against it starting
+    # a new instance here, without a terminal, should the socket owner just
+    # have quit; a failure to start is its non-zero exit.
+    if output=$(timeout 10 aerc "$url" 2>&1); then
+        error=$(sed -n 's/^response: //p' <<< "$output")
+    else
+        error=$(tail -n 1 <<< "$output")
+        error=${error:-aerc exited with an error}
+    fi
+    if [[ -n $error ]]; then
+        notify "aerc could not open the link" "$error"
+        exit 1
+    fi
+fi
+
+# The window is the terminal's: walk up from aerc to a process Hyprland lists.
+clients=$(hyprctl clients -j)
+address=
+pid=$owner
+while [[ -z $address && $pid -gt 1 ]]; do
+    address=$(jq -r --argjson pid "$pid" \
+        'first(.[] | select(.pid == $pid) | .address) // empty' <<< "$clients")
+    pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ' || true)
+    pid=${pid:-0}
+done
+if [[ -n $address ]]; then
+    hyprctl dispatch "hl.dsp.focus({ window = 'address:$address' })" >/dev/null
+else
+    # For example inside tmux or Herdr, which own the terminal instead.
+    notify "aerc has no window to focus" "It is running outside a terminal window of its own (PID $owner)."
+fi

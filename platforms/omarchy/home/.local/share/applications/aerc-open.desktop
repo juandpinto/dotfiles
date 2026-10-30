@@ -1,0 +1,14 @@
+[Desktop Entry]
+# The mailto: handler: xdg-open ignores the packaged aerc.desktop's
+# Terminal=true on Hyprland, so links go through aerc-open, which hands them
+# to the running aerc and focuses it, or starts aerc in a terminal.
+# Hidden from the launcher; the packaged aerc.desktop stays the visible entry.
+Type=Application
+Name=aerc (mailto links)
+Comment=Open mailto: links in aerc
+Icon=aerc
+TryExec=aerc
+Exec=aerc-open %u
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/mailto;

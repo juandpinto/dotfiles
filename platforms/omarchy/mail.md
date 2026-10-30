@@ -30,6 +30,7 @@ This is the Linux port of the Mac setup documented in [`Archive/mail-setup-macos
 | unified-tab archive/trash/undo             | `~/.local/bin/notmuch-unified-file`, `aerc_unified_journal.py`                                                     | shared root                 |
 | serialized `notmuch new`                   | `~/.local/bin/notmuch-new-locked`                                                                                  | shared root                 |
 | To/Cc/From address completion              | `~/.local/bin/aerc-address-book`                                                                                   | overlay                     |
+| mailto: handler, Super+Shift+E             | `~/.local/bin/aerc-open`, `~/.local/share/applications/aerc-open.desktop`                                          | overlay                     |
 | background sync                            | `~/.config/systemd/user/mailsync.{service,timer}`                                                                  | overlay                     |
 | logs                                       | `journalctl --user -u mailsync`, `-t mailsync-push`; `~/.local/state/mail/*.log`; `~/.local/state/msmtp/msmtp.log` | runtime                     |
 | undo journal                               | `~/.local/state/aerc/unified-move-undo/`                                                                           | runtime                     |
@@ -95,6 +96,25 @@ First-launch checks:
 - `~/.local/bin/notmuch-unified-file` does the unified tab's archive/trash: aerc's own `:archive`/`:move` on a notmuch account have one static destination with no idea which real account a message belongs to and once mis-filed mail into a bogus `~/mail/Archive/`. The helper resolves each message's real file via notmuch, moves it into that account's own Archive/Trash, journals the move for `u`, reindexes under the shared lock and kicks a targeted mbsync push.
 - Address completion in To/Cc/From comes from `~/.local/bin/aerc-address-book` (the `address-book-cmd` of every account). It suggests people you have written to (recipients of mail sent from any `user.*_email` in the notmuch config) and people who have written to you. Results must contain every typed word, matched as word prefixes in any order, and are ranked by how often you have written to them, then how often they have written to you. No-reply addresses are dropped. A bare `notmuch address` query cannot do this. It matches *messages*, not addresses, so `to:ju*` matched all mail addressed to Juan and listed every sender in the mailbox. It also returns results in an unspecified order with `--deduplicate=address`, and aerc keeps only the first 100 lines without filtering them.
 - Status: `systemctl --user status mailsync.timer mailsync.service`, `journalctl --user -u mailsync -n 50`, `journalctl --user -t mailsync-push -n 50`.
+
+## Default mail client
+
+aerc opens `mailto:` links and replaces Omarchy's HEY web app on `Super+Shift+E` (open or focus aerc) and `Super+Shift+Alt+E` (new message). All three go through `~/.local/bin/aerc-open`. If aerc is running, it hands the link to that instance over aerc's IPC socket (`$XDG_RUNTIME_DIR/aerc.sock`) and focuses its terminal window. Otherwise it starts aerc in a terminal (app ID `org.omarchy.aerc`) with the link. After `link.sh`, register the handler once:
+
+```bash
+update-desktop-database ~/.local/share/applications
+xdg-mime default aerc-open.desktop x-scheme-handler/mailto
+```
+
+The packaged `aerc.desktop` can't be the handler: it sets `Terminal=true`, which `xdg-open` (what browsers call) ignores on Hyprland, so aerc would start without a terminal. Our `aerc-open.desktop` is hidden from the launcher, so the packaged entry stays the visible one. It launches through `uwsm-app -t service`, like `yazi.desktop`, because `xdg-open` waits for its handler to exit.
+
+What `aerc-open` works around:
+
+- **Closing aerc's window doesn't quit aerc.** aerc 0.22 (and upstream `master` as of October 2026) uses SIGHUP to reload its config, so when its terminal closes it keeps running without one, still holding the socket, and links handed to it vanish. `aerc-open` therefore first ends any aerc whose terminal is gone (SIGTERM, aerc's clean quit). Until the next `aerc-open`, such an aerc lingers in the background (about 250 MB). Quitting with `q` or `Ctrl+q` avoids it.
+- **Percent-encoded addresses.** aerc decodes a link's `?query` but not the address before it, so `aerc-open` decodes the address (`mailto:jane%40example.org`).
+- **Failures are visible.** A link aerc rejects produces a notification instead of nothing. An aerc without a window of its own (inside tmux or Herdr) still gets the link, with a notification that there is no window to focus.
+
+New messages use the identity of the selected account tab (`unified` sends as iCloud); a link can choose with `?account=gmail`. Run `bash platforms/omarchy/tests/test_aerc_open.sh` for isolated checks with aerc, Hyprland and uwsm mocked.
 
 ## Differences from the Mac, and why
 
