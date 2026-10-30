@@ -238,6 +238,8 @@ effect() { # input-file [extra ttfx args...]
 our_effect() { effect "$1" --anchor-canvas nw --anchor-text nw --existing-color-handling always; }
 
 printf '\033]11;rgb:00/00/00\007' # black background, as Omarchy's screensaver
+# kitty.conf's background_opacity would let the wallpaper show through the black.
+$preview || kitty @ set-background-opacity --match "id:${KITTY_WINDOW_ID:-}" 1 &>/dev/null
 printf '\e[?25l\e[2J'
 stty -echo 2>/dev/null
 $preview || hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null || hyprctl keyword cursor:invisible true &>/dev/null
