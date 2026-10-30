@@ -1,0 +1,52 @@
+# Local rebuild of asahi-alarm's tiny-dfr with idle-blank.patch, which stops
+# the Touch Bar flashing white while idle. Upstream recipe:
+# https://github.com/asahi-alarm/PKGBUILDs/tree/main/tiny-dfr
+# Build, install and pinning: platforms/omarchy/README.md, "Touch Bar".
+#
+# Upstream maintainers: Jos Dehaes <jos.dehaes@gmail.com>,
+# Matthias Kurz <m.kurz@irregular.at>
+
+pkgname=tiny-dfr
+pkgver=0.3.7
+pkgrel=1.2
+pkgdesc='Apple silicon touch bar input / display daemon (local idle-blank build)'
+arch=('aarch64')
+url=https://crates.io/crates/tiny-dfr
+license=('MIT' 'APACHE')
+makedepends=('rust')
+depends=('pango' 'libinput' 'gdk-pixbuf2' 'librsvg')
+source=(
+  "$pkgname-$pkgver.crate::https://static.crates.io/crates/tiny-dfr/tiny-dfr-$pkgver.crate"
+  '81.patch'
+  'idle-blank.patch')
+sha512sums=('af8ac6116c80cf7e87f06158c0917af4faad1804531666bd21d8382d729b969cc8902e0e1b9e78e628f4bda4f54ae942a36ce64d8388edb0db2b6ce167214cb7'
+            '7ee49f123225757b57b89ae21b5ed53cc3249e51c5ed24caf55edf5b5f4a77c2c6bc2e34f4dc81a4db23e85b57c74b9d3f14f63c2700905fbf285a26943a2cfb'
+            'cb9019c3ad691adde488965f7eaafd99f2dcf28c23e58d2595909d678c9d2790b250b96d84f269ac848b4fe0e03c8daa1f9919eab4b115a43e210f4d2554897b')
+
+prepare() {
+  tar -xf $pkgname-$pkgver.crate
+  cd $pkgname-$pkgver
+  for p in 81 idle-blank; do
+    patch -p1 -s --fuzz=0 --no-backup-if-mismatch -f < "../$p.patch"
+  done
+  cargo fetch --target "$CARCH-unknown-linux-gnu"
+}
+
+build() {
+  cd $pkgname-$pkgver
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --all-features
+}
+
+package() {
+  cd $pkgname-$pkgver
+  install -Dm755 target/release/$pkgname "$pkgdir"/usr/bin/$pkgname
+  install -Dm644 share/$pkgname/* -t "$pkgdir/usr/share/$pkgname"
+  install -Dm644 etc/systemd/system/$pkgname.service "$pkgdir/usr/lib/systemd/system/$pkgname.service"
+  install -Dm644 etc/udev/rules.d/99-touchbar-seat.rules "$pkgdir/usr/lib/udev/rules.d/99-touchbar-seat.rules"
+  install -Dm644 etc/udev/rules.d/99-touchbar-tiny-dfr.rules "$pkgdir/usr/lib/udev/rules.d/99-touchbar-tiny-dfr.rules"
+  install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+  install -Dm644 LICENSE.material "$pkgdir"/usr/share/licenses/$pkgname/LICENSE.material
+}
+
+# vim:set ts=2 sw=2 et:

@@ -1,0 +1,5 @@
+# makepkg output when building in place
+/src/
+/pkg/
+/*.crate
+/*.pkg.tar.*

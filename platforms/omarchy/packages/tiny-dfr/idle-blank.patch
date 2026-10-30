@@ -1,0 +1,119 @@
+Keep the Touch Bar out of brightness 0.
+
+Some MacBookPro17,1 Touch Bar panels flash white, often about once a second,
+while their backlight is held at 0, which tiny-dfr uses after 60 s without
+input and whenever the lid is closed
+(https://github.com/AsahiLinux/tiny-dfr/issues/32). Stay at the dimmed level
+(1) instead, and paint the bar black so it still looks off (black OLED pixels
+are unlit, so the faint image doesn't age the panel). A closed lid matters
+too: with lid-closed operation or a docked display, the laptop can run for
+hours with the bar flashing unseen under the lid. Touches are ignored until
+input or opening the lid wakes the bar, as tiny-dfr already does at
+brightness 0.
+
+--- a/src/backlight.rs
++++ b/src/backlight.rs
+@@ -114,13 +114,14 @@
+             _ => {}
+         }
+     }
+-    pub fn update_backlight(&mut self, cfg: &Config) {
++    /// Returns true while the bar should look off: lid closed, or idle past the off timeout.
++    pub fn update_backlight(&mut self, cfg: &Config) -> bool {
+         let since_last_active = (Instant::now() - self.last_active).as_millis() as u64;
++        let lid_closed = self.lid_state == SwitchState::On;
++        let looks_off = lid_closed || since_last_active >= BRIGHTNESS_OFF_TIMEOUT as u64;
+         let new_bl = min(
+             self.max_bl,
+-            if self.lid_state == SwitchState::On {
+-                0
+-            } else if since_last_active < BRIGHTNESS_DIM_TIMEOUT as u64 {
++            if !lid_closed && since_last_active < BRIGHTNESS_DIM_TIMEOUT as u64 {
+                 if cfg.adaptive_brightness {
+                     BacklightManager::display_to_touchbar(
+                         read_attr(&self.display_bl_path, "brightness"),
+@@ -129,16 +130,17 @@
+                 } else {
+                     cfg.active_brightness
+                 }
+-            } else if since_last_active < BRIGHTNESS_OFF_TIMEOUT as u64 {
+-                DIMMED_BRIGHTNESS
+             } else {
+-                0
++                // Some panels flash white while held at 0, so never go below
++                // the dimmed level; the caller blanks the image to look off.
++                DIMMED_BRIGHTNESS
+             },
+         );
+         if self.current_bl != new_bl {
+             self.current_bl = new_bl;
+             set_backlight(&self.bl_file, self.current_bl);
+         }
++        looks_off
+     }
+     pub fn current_bl(&self) -> u32 {
+         self.current_bl
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -786,6 +786,17 @@
+     sigset.wait().unwrap();
+ }
+ 
++fn blank_display(drm: &mut DrmBackend, surface: &mut ImageSurface, width: u16, height: u16) {
++    {
++        let c = Context::new(&*surface).unwrap();
++        c.set_source_rgb(0.0, 0.0, 0.0);
++        c.paint().unwrap();
++    }
++    let data = surface.data().unwrap();
++    drm.map().unwrap().as_mut()[..data.len()].copy_from_slice(&data);
++    drm.dirty(&[ClipRect::new(0, 0, height, width)]).unwrap();
++}
++
+ fn real_main(drm: &mut DrmBackend) {
+     let (height, width) = drm.mode().size();
+     let (db_width, db_height) = drm.fb_info().unwrap().size();
+@@ -808,6 +819,7 @@
+         ImageSurface::create(Format::ARgb32, db_width as i32, db_height as i32).unwrap();
+     let mut active_layer = 0;
+     let mut needs_complete_redraw = true;
++    let mut blanked = false;
+ 
+     let mut input_tb = Libinput::new_with_udev(Interface);
+     let mut input_main = Libinput::new_with_udev(Interface);
+@@ -901,7 +913,9 @@
+             }
+         }
+ 
+-        if needs_complete_redraw || layers[active_layer].buttons.iter().any(|b| b.1.changed) {
++        if !blanked
++            && (needs_complete_redraw || layers[active_layer].buttons.iter().any(|b| b.1.changed))
++        {
+             let shift = if cfg.enable_pixel_shift {
+                 pixel_shift.get()
+             } else {
+@@ -955,7 +969,7 @@
+                     }
+                 }
+                 Event::Touch(te) => {
+-                    if Some(te.device()) != digitizer || backlight.current_bl() == 0 {
++                    if Some(te.device()) != digitizer || blanked || backlight.current_bl() == 0 {
+                         continue;
+                     }
+                     match te {
+@@ -995,6 +1009,14 @@
+                 _ => {}
+             }
+         }
+-        backlight.update_backlight(&cfg);
++        let looks_off = backlight.update_backlight(&cfg);
++        if looks_off != blanked {
++            blanked = looks_off;
++            if blanked {
++                blank_display(drm, &mut surface, width, height);
++            } else {
++                needs_complete_redraw = true;
++            }
++        }
+     }
+ }
