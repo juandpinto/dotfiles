@@ -1,0 +1,9 @@
+[Unit]
+Description=Delete files that have been in the Trash for more than 30 days
+
+[Service]
+Type=oneshot
+# trash-cli; only removes entries whose DeletionDate is older than 30 days.
+ExecStart=/usr/bin/trash-empty 30
+TimeoutStartSec=5min
+NoNewPrivileges=yes

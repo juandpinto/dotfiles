@@ -1,0 +1,12 @@
+[Unit]
+Description=Delete files that have been in the Trash for more than 30 days
+Documentation=file:%h/.dotfiles/platforms/omarchy/README.md
+
+[Timer]
+# Daily; Persistent catches up on the next boot if the laptop was off.
+OnCalendar=daily
+Persistent=true
+AccuracySec=1h
+
+[Install]
+WantedBy=timers.target
