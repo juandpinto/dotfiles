@@ -18,7 +18,7 @@ This is my actual day-to-day setup, not a general-purpose framework, so it comes
 | File manager       | Yazi                                                      |
 | System monitor     | btop                                                      |
 | Email              | aerc                                                      |
-| AI coding agent    | [pi](https://github.com/earendil-works/pi)                |
+| AI coding agent    | [pi](https://github.com/earendil-works/pi); Copilot CLI   |
 | Linting/formatting | Ruff (Python), StyLua (Lua), markdownlint                 |
 | Diff/review        | hunk                                                      |
 
@@ -46,7 +46,7 @@ This is my actual day-to-day setup, not a general-purpose framework, so it comes
 3. Create real directories for tools that mix authored config with local state, then Stow into `$HOME`:
 
     ```bash
-    mkdir -p ~/.config/herdr ~/.config/jiratui ~/.config/pi/agent/extensions
+    mkdir -p ~/.config/herdr ~/.config/jiratui ~/.config/pi/agent/extensions ~/.copilot/extensions
     stow -t ~ .
     ```
 
@@ -97,6 +97,36 @@ Then confirm both are real directories, not symlinks:
 readlink ~/.config/pi/agent/npm   # prints nothing once fixed
 readlink ~/.config/pi/agent/git   # prints nothing once fixed
 ```
+
+## GitHub Copilot CLI
+
+Until pi is approved on the work Mac, [Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) shares pi's global instructions and skills, and an extension trims its system prompt to pi's size. Stow links these from `.copilot/` into `~/.copilot`:
+
+| pi                              | Copilot CLI                                                                                                                                                                                                                             |
+|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `AGENTS.md` global instructions | `copilot-instructions.md`, a link to the same file                                                                                                                                                                                      |
+| `skills/`                       | `skills`, a link to the same directory, so a new pi skill appears in both; `/<skill-name>` runs one                                                                                                                                     |
+| Minimal system prompt and tools | `extensions/pi-prompt/extension.mjs` replaces Copilot's intro with pi's, keeps our instructions, skills and environment details, drops the rest of Copilot's guidance, and limits tools to `bash`, `view`, `edit`, `create` and `skill` |
+
+Copilot's default first request is about 15k tokens of system prompt and tool definitions (19 tools); with the extension it's about 3.6k, close to pi's 3.2k. Among the dropped guidance are GitHub's safety section, a model-specific "be extremely biased for action" block that contradicts our ask-when-ambiguous rule, and the Co-authored-by commit trailer.
+
+`~/.copilot` is also Copilot's runtime directory (settings, trusted folders, sessions, logs), so keep it and `~/.copilot/extensions` real directories (setup step 3). If `~/.copilot/skills` already exists as a real directory, move any skills worth keeping into `.config/pi/agent/skills/` and set it aside before stowing, or Stow reports a conflict. User extensions are an experimental Copilot feature, so enable them once per machine (`settings.json` isn't tracked, because it stores trusted folders):
+
+```bash
+copilot config experimental true
+```
+
+`copilot config experimental false` turns the extension off, and Copilot goes back to its full default prompt. That's also the fix if Copilot ever refuses prompts with "failed to parse CLI system message input" after an update, which means the extension's configuration no longer matches Copilot's.
+
+### Check the Copilot setup
+
+The check below needs no GitHub account or model, and nothing leaves the machine. It confirms the links resolve into this repo and that experimental features are on. It then runs Copilot offline against a local fake model and checks what Copilot would have sent: pi's intro, our `AGENTS.md`, every pi skill, only the five tools, none of the dropped blocks, and an estimated token count. It uses `copilot` from `PATH` (`COPILOT_BIN` overrides it).
+
+```bash
+node tests/test_copilot_prompt.mjs
+```
+
+In an interactive session, the startup line listing "Disabled tools" shows the extension is active. `/env` lists `pi-prompt (running, user)` with the instructions file and skills, and `/context` should show about 2k tokens of system prompt and five tool definitions. If an organization policy blocks offline mode, use these in-session checks instead.
 
 ## JiraTUI
 

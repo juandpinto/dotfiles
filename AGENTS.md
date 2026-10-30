@@ -70,6 +70,13 @@ Configuration validation and Linux migration notes live in `platforms/omarchy/`.
   or generated theme files into this repo. Backups stay under local state.
 - Do not push or commit the migration without user review.
 
+## Copilot CLI mirror of the pi setup
+
+- pi isn't approved on the work Mac yet, so `.copilot/` (Mac root Stow only) points Copilot CLI at the pi global instructions and skills instead of copying them: `copilot-instructions.md` and `skills` are relative symlinks to `.config/pi/agent/AGENTS.md` and `.config/pi/agent/skills`. Edit the pi originals; never fork Copilot-specific copies.
+- `.copilot/extensions/pi-prompt/extension.mjs` trims Copilot's system prompt and tools to roughly pi's size through the SDK's `systemMessage` customize mode (`SystemMessageSection` in the bundled `copilot-sdk/types.d.ts`). It only loads with `experimental: true`. A malformed configuration makes Copilot refuse every prompt rather than ignore the extension, so run `tests/test_copilot_prompt.mjs` after changing it. The test runs Copilot offline against a fake model and needs no account.
+- `~/.copilot` and `~/.copilot/extensions` are Copilot's runtime directories and must stay real, so Stow links only our entries into them. `settings.json` is never tracked, because it stores trusted folders. `.gitignore` admits only our entries under `/.copilot/`.
+- Running `copilot` on Linux goes through Omarchy's mise wrapper, which runs `mise use -g copilot` and so edits the linked `platforms/omarchy/home/.config/mise/config.toml`. Revert that if it was unintended, or call the binary under `~/.local/share/mise/installs/copilot/` directly.
+
 ## Git submodules
 
 - Two real submodules: `.config/zsh/plugins/fzf-git.sh` and
