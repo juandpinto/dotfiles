@@ -15,6 +15,15 @@ __pycache__/
 !/.config/herdr/config.toml
 !/.config/herdr/lastfocus/
 !/.config/herdr/labels/
+# Copilot CLI's runtime directory is ~/.copilot (settings.json holds trusted
+# folders). Only the instructions and skills links and the pi-prompt
+# extension are ours, in case Stow ever folds the directory into the repo.
+/.copilot/*
+!/.copilot/copilot-instructions.md
+!/.copilot/skills
+!/.copilot/extensions/
+/.copilot/extensions/*
+!/.copilot/extensions/pi-prompt/
 # Mail account configs carry email addresses/logins; they live in the private
 # companion repo (~/.dotfiles-private), never here. See platforms/omarchy/mail.md.
 platforms/omarchy/home/.config/aerc/accounts.conf
