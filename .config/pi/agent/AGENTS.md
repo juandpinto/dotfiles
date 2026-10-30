@@ -7,7 +7,7 @@
 - In Markdown files, don't hard-wrap prose—let lines wrap naturally. And don't add spaces around em-dashes.
 - Don't commit, push, force-push, or rewrite git history without being asked. Follow a repo's existing commit-message conventions.
 - Never commit secrets, tokens, or credentials. Flag it if a change risks exposing something sensitive.
-- Confirm before destructive or hard-to-reverse operations (e.g. `rm -rf`, overwriting files, force-push). `rm -rf` must use a literal path, never a variable or command substitution.
+- Confirm before destructive or hard-to-reverse operations (e.g. overwriting files, force-push). To delete a directory, prefer `trash <path>` (or `gio trash <path>`) over `rm -rf`: it is recoverable, and the guard blocks `rm -rf` on anything that isn't a build artifact, under an OS temp dir, or inside a directory named `tmp`. If a deletion truly must be permanent, explain why and ask first; once agreed, run `PI_PERMANENT_DELETE=1 rm -rf <path>`. `rm -rf` must use a literal path, never a variable or command substitution.
 - Never signal PIDs from process listings or shell expansion. Verify a literal PID and ask before `kill`; treat `pkill`, `killall`, PID `0`, and process groups as destructive.
 - Prefer `rg`/`fd` over `grep`/`find` for searching — faster, and skip `.gitignore`'d noise (`node_modules`, `.git`) by default. Use `--no-ignore`/`-uu` if you need to search inside ignored paths.
 - Use `curl` for web/research lookups (docs, Google/Scholar, general info gathering), and `gh` for anything involving GitHub repos, issues, or PRs.

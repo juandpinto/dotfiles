@@ -154,6 +154,12 @@ After linking the overlay, run `systemctl --user daemon-reload` and `systemctl -
 
 The standard Pi agent/session paths are used, with `PI_CODING_AGENT_DIR` and `PI_CODING_AGENT_SESSION_DIR` honored when supplied to the service. Tests use synthetic sessions and mocked HTTP, never real credentials: `uv run --offline --no-project --python /usr/bin/python3 -m unittest discover -s platforms/omarchy/tests -p 'test_pi_copilot_usage.py' -v`.
 
+## Trash instead of `rm -rf`
+
+Pi's shared `guard-destructive` extension blocks the agent's `rm -rf` on anything that isn't recognizably disposable (build artifacts, OS temp dirs, anything inside a directory named `tmp`, or a path that doesn't exist yet) and tells it to use `trash <path>` instead, which is recoverable. Only `PI_PERMANENT_DELETE=1 rm -rf <path>`, which the agent is instructed to use after asking in conversation, reaches an interactive confirm. On Linux `trash` comes from `trash-cli` and writes to the standard `~/.local/share/Trash`, the same place `gio trash` and the desktop file managers use. `trash-empty.timer` runs `trash-empty 30` daily, deleting only entries trashed more than 30 days ago. On the Mac, `trash` is macOS's own (14+, otherwise `brew install trash`) and uses Finder's Trash; the equivalent 30-day cleanup is Finder's own setting (Settings → Advanced → "Remove items from the Trash after 30 days"), so no launchd job is needed there.
+
+The guard's string rules are unit-tested with `node .config/pi/agent/extensions/guard-destructive/rules.test.mjs`.
+
 ## Wallpaper shuffle
 
 `wallpaper-shuffle.timer` selects a random image from `~/Documents/backgrounds` at desktop login and every minute thereafter, avoiding an immediate repeat. We use `omarchy theme bg set`, keeping the native background renderer and transitions; no wallpaper daemon, theme-colour change or stock-file edit is involved. The folder is rescanned on each run, so newly added JPG/JPEG/PNG/GIF/BMP/WebP files are picked up automatically. Only files directly in that folder are included; images stay outside Git.

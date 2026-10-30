@@ -12,11 +12,13 @@
 import {
 	checkRmSegment,
 	checkTier1Patterns,
+	checkTier2,
 	forcePushNamesProtectedBranch,
 	hasCatastrophicSql,
 	hasDynamicRecursiveForceRmTarget,
 	hasForcePushWithoutExplicitBranch,
 	hasForkBomb,
+	hasPermanentDeleteMarker,
 	hasRawDiskWrite,
 	hasUnsafeSignalInvocation,
 	isRmSegmentAutoAllowed,
@@ -24,6 +26,7 @@ import {
 	isUnderSafeRoot,
 	looksLikeForcePush,
 	parseCdTarget,
+	plainRmTargetPaths,
 	pushHasExplicitBranchRef,
 	resolvePathToken,
 	segmentsWithCwd,
@@ -287,6 +290,89 @@ assert(
 	const cmd = `cd ${proj} && rm -rf ${proj}/.sandbox/tmp/demo-probe && ./run-core python -m demo ${proj}/.sandbox/tmp/demo-probe 2>&1 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d)" && ./run-core finance-core fetch ${proj}/.sandbox/tmp/demo-probe/workspace.toml | python3 -c "import json,sys; print([o['status'] for o in json.load(sys.stdin)['outcomes']])"`;
 	assert("project .sandbox/tmp probe chain auto-allowed", isTier2Destructive(cmd, { cwdContext: cwdCtx }), false);
 }
+
+// ── checkTier2 tells rm apart from chmod so index.ts can route them ───────
+assert("checkTier2 rm kind", checkTier2("rm -rf some-dir"), { kind: "rm", segment: "rm -rf some-dir" });
+assert("checkTier2 reports the offending segment", checkTier2("cd /x && rm -rf some-dir && ls"), {
+	kind: "rm",
+	segment: "rm -rf some-dir",
+});
+assert("checkTier2 chmod kind", checkTier2("chmod 777 file"), { kind: "chmod" });
+assert("checkTier2 clean", checkTier2("ls"), undefined);
+
+// ── Permanent-delete marker ──────────────────────────────────────────────────
+assert("marker as env prefix", hasPermanentDeleteMarker("PI_PERMANENT_DELETE=1 rm -rf some-dir"), true);
+assert("marker with sudo", hasPermanentDeleteMarker("PI_PERMANENT_DELETE=1 sudo rm -rf some-dir"), true);
+assert("no marker", hasPermanentDeleteMarker("rm -rf some-dir"), false);
+assert("marker must be =1", hasPermanentDeleteMarker("PI_PERMANENT_DELETE=0 rm -rf some-dir"), false);
+assert("marker still reviewed, not auto-allowed", checkTier2("PI_PERMANENT_DELETE=1 rm -rf some-dir"), {
+	kind: "rm",
+	segment: "PI_PERMANENT_DELETE=1 rm -rf some-dir",
+});
+
+// ── Absent targets: rm -rf on a path that doesn't exist is a no-op ───────
+// plainRmTargetPaths decides when the command text is simple enough to trust;
+// null means "don't apply the shortcut."
+const home = "/Users/juanpinto";
+const proj = `${home}/proj`;
+assert("plain absolute", plainRmTargetPaths("rm -rf /x/out", proj, home), ["/x/out"]);
+assert("plain relative", plainRmTargetPaths("rm -rf out/dir", proj, home), [`${proj}/out/dir`]);
+assert("plain tilde", plainRmTargetPaths("rm -rf ~/scratch/x", proj, home), [`${home}/scratch/x`]);
+assert("plain multiple", plainRmTargetPaths("rm -rf a b", proj, home), [`${proj}/a`, `${proj}/b`]);
+assert("plain sudo", plainRmTargetPaths("sudo rm -rf /x/out", proj, home), ["/x/out"]);
+assert("plain /bin/rm", plainRmTargetPaths("/bin/rm -rf /x/out", proj, home), ["/x/out"]);
+assert("plain after --", plainRmTargetPaths("rm -rf -- -weird", proj, home), [`${proj}/-weird`]);
+assert("dot-dot resolved", plainRmTargetPaths("rm -rf ../sib", `${proj}/sub`, home), [`${proj}/sib`]);
+assert("relative needs cwd", plainRmTargetPaths("rm -rf out", null, home), null);
+assert("tilde needs home", plainRmTargetPaths("rm -rf ~/x", proj, undefined), null);
+assert("absolute needs neither", plainRmTargetPaths("rm -rf /x/out", null, undefined), ["/x/out"]);
+for (const cmd of [
+	'rm -rf "/x/with space"', // quoted: tokens don't match the real path
+	"rm -rf /x/with\\ space",
+	"rm -rf /x/out*", // glob
+	"rm -rf /x/out?",
+	"rm -rf /x/[ab]",
+	"rm -rf ~bob/x", // another user's home
+	"rm -rf /x/out > /x/log", // redirection
+	"rm -rf /x/out & echo", // background
+	"find . -name foo -exec rm -rf {} +", // rm embedded in another command
+	"xargs rm -rf",
+	"sh -c rm -rf /x/out",
+	"nohup rm -rf /x/out",
+	"PI_PERMANENT_DELETE=1 rm -rf /x/out", // marker goes to confirm, never the shortcut
+	"rm -rf", // no targets
+	"rm -rf $DIR",
+	"rm -rf /x/out+1",
+]) {
+	assert(`not plain: ${cmd}`, plainRmTargetPaths(cmd, proj, home), null);
+}
+
+// With a pathExists oracle, absent targets skip review; present ones don't.
+const absentCtx = { cwdContext: { startCwd: proj, homeDir: home } };
+const nothingExists = { ...absentCtx, pathExists: () => false };
+const everythingExists = { ...absentCtx, pathExists: () => true };
+const onlyOutExists = { ...absentCtx, pathExists: (p) => p === `${proj}/out` };
+const absentCases = [
+	["rm -rf out", nothingExists, false],
+	["rm -rf /x/out", nothingExists, false],
+	["cd /x && rm -rf out", nothingExists, false], // cd before is fine
+	["cd /x && cd y && rm -rf out", nothingExists, false],
+	["rm -rf out && mkdir out && ./run out", nothingExists, false], // later segments don't matter
+	["rm -rf out", everythingExists, true],
+	["rm -rf out other", onlyOutExists, true], // one present target is enough to review
+	["rm -rf other", onlyOutExists, false],
+	["mv precious out && rm -rf out", nothingExists, true], // earlier segment could create it
+	["mkdir out; rm -rf out", nothingExists, true],
+	["rm -rf /tmp/a && rm -rf out", nothingExists, true], // only cd may precede
+	['rm -rf "out dir"', nothingExists, true], // quoting disables the shortcut
+	["find . -exec rm -rf {} +", nothingExists, true],
+	["rm -rf out", absentCtx, true], // no oracle: unchanged behavior
+];
+for (const [cmd, options, expectReview] of absentCases) {
+	assert(`absent-target "${cmd}"`, isTier2Destructive(cmd, options), expectReview);
+}
+// Tier 1 still wins over the shortcut.
+assert("absent shortcut never reaches tier 1 cases", Boolean(checkTier1Patterns("rm -rf $DIR")), true);
 
 // ── Force-push helpers ────────────────────────────────────────────────────
 assert("force push explicit main", forcePushNamesProtectedBranch("git push --force origin main"), true);

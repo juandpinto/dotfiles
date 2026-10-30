@@ -318,8 +318,9 @@ export function checkTier1Patterns(command: string): Tier1Match | undefined {
 // under a real OS temp directory, or anything inside a directory named
 // exactly `tmp`. Anything else in the same rm invocation
 // (an unrecognized target, or a bare wildcard like `*` whose safety
-// depends on cwd) keeps the confirm for the whole command — err toward
-// asking when uncertain.
+// depends on cwd) keeps the review for the whole command — err toward
+// asking when uncertain. A separate shortcut below lets through an rm whose
+// targets provably don't exist yet, since that rm is a no-op.
 //
 // Deliberately NOT included: generic "test"/"tmp"/"scratch" substring
 // matching (too easy to collide with a real, meaningful directory such as
@@ -503,22 +504,107 @@ export function isRmSegmentAutoAllowed(
 
 const CHMOD_CHOWN_777 = /\b(chmod|chown)\b[^&|;\n]*\b(777|a\+rwx)\b/i;
 
+// ── Absent targets: `rm -rf` on a path that doesn't exist is a no-op ─────
+//
+// Only trusted when the command text leaves no room for the real target to
+// differ from the one we checked: the segment is a plain `rm` (or `sudo
+// rm`) invocation, not something that embeds rm (`find -exec rm`, `xargs
+// rm`, `sh -c "rm ..."`); each target is a simple literal path with no
+// quotes, backslashes, globs, `~user`, redirections or `&`; and every
+// earlier segment is a `cd`, since anything else (`mv precious X && rm -rf
+// X`) could create the target between our check and the rm. The caller
+// does the actual filesystem lookup, see Tier2Options.pathExists.
+
+const PLAIN_PATH = /^(~\/)?[A-Za-z0-9._/@:,=-]+$/;
+
+/**
+ * Absolute paths of every target in a plain `rm` segment, or null when
+ * the absent-target shortcut must not apply (see the comment above).
+ * Relative targets need a known cwd; `~/` targets need homeDir.
+ */
+export function plainRmTargetPaths(segment: string, cwd: string | null, homeDir: string | undefined): string[] | null {
+	if (/["'\\]/.test(segment)) return null;
+	const tokens = segment.split(/\s+/).filter(Boolean);
+	let index = 0;
+	if (bareCommandName(tokens[index]) === "sudo") index++;
+	if (bareCommandName(tokens[index]) !== "rm") return null;
+
+	const targets = rmTargetTokens(segment);
+	if (targets.length === 0) return null;
+	const paths: string[] = [];
+	for (const target of targets) {
+		if (!PLAIN_PATH.test(target)) return null;
+		let base: string;
+		if (target.startsWith("/")) base = "/";
+		else if (target.startsWith("~/")) {
+			if (homeDir === undefined) return null;
+			base = homeDir;
+		} else {
+			if (cwd === null || homeDir === undefined) return null;
+			base = cwd;
+		}
+		const resolved = resolvePathToken(target, base, homeDir ?? "/");
+		if (resolved === null) return null;
+		paths.push(resolved);
+	}
+	return paths;
+}
+
+// ── Permanent-delete marker ──────────────────────────────────────────────
+//
+// `PI_PERMANENT_DELETE=1 rm -rf <path>` routes an otherwise-blocked rm to
+// the interactive confirm instead. The agent is told to use it only after
+// the user has agreed in conversation; adding it without asking just earns
+// the same prompt the guard used to show for every rm -rf.
+
+export function hasPermanentDeleteMarker(segment: string): boolean {
+	return /(^|\s)PI_PERMANENT_DELETE=1(\s|$)/.test(segment);
+}
+
 export interface Tier2Options {
 	safeRoots?: string[];
 	cwdContext?: CwdContext;
+	/**
+	 * True if anything (file, directory, symlink even if dangling) exists at
+	 * this absolute path. When provided, enables the absent-target shortcut.
+	 */
+	pathExists?: (absolutePath: string) => boolean;
+}
+
+export type Tier2Match = { kind: "rm"; segment: string } | { kind: "chmod" };
+
+export function checkTier2(command: string, options: Tier2Options = {}): Tier2Match | undefined {
+	const safeRoots = options.safeRoots ?? DEFAULT_SAFE_ROOTS;
+	const homeDir = options.cwdContext?.homeDir;
+	let precededOnlyByCd = true;
+	for (const { segment, cwd } of segmentsWithCwd(command, options.cwdContext)) {
+		const isCd = parseCdTarget(segment) !== undefined;
+		const needsReview =
+			/\brm\b/.test(segment) &&
+			checkRmSegment(segment).recursiveForce &&
+			// Dynamic recursive-force targets are Tier 1 and never reach confirmation.
+			!hasDynamicRecursiveForceRmTarget(segment) &&
+			!isRmSegmentAutoAllowed(segment, cwd, homeDir, safeRoots) &&
+			!(precededOnlyByCd && allTargetsAbsent(segment, cwd, homeDir, options.pathExists));
+		if (needsReview) return { kind: "rm", segment };
+		precededOnlyByCd &&= isCd;
+	}
+	if (CHMOD_CHOWN_777.test(command)) return { kind: "chmod" };
+	return undefined;
+}
+
+function allTargetsAbsent(
+	segment: string,
+	cwd: string | null,
+	homeDir: string | undefined,
+	pathExists: Tier2Options["pathExists"],
+): boolean {
+	if (!pathExists) return false;
+	const paths = plainRmTargetPaths(segment, cwd, homeDir);
+	if (paths === null) return false;
+	return paths.every((path) => !pathExists(path));
 }
 
 export function isTier2Destructive(command: string, options: Tier2Options = {}): boolean {
-	const safeRoots = options.safeRoots ?? DEFAULT_SAFE_ROOTS;
-	const needsConfirmRm = segmentsWithCwd(command, options.cwdContext).some(({ segment, cwd }) => {
-		if (!/\brm\b/.test(segment)) return false;
-		const { recursiveForce } = checkRmSegment(segment);
-		if (!recursiveForce) return false;
-		// Dynamic recursive-force targets are Tier 1 and never reach confirmation.
-		if (hasDynamicRecursiveForceRmTarget(segment)) return false;
-		return !isRmSegmentAutoAllowed(segment, cwd, options.cwdContext?.homeDir, safeRoots);
-	});
-	if (needsConfirmRm) return true;
-	if (CHMOD_CHOWN_777.test(command)) return true;
-	return false;
+	return checkTier2(command, options) !== undefined;
 }
