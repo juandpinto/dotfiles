@@ -120,13 +120,22 @@ copilot config experimental true
 
 ### Check the Copilot setup
 
-The check below needs no GitHub account or model, and nothing leaves the machine. It confirms the links resolve into this repo and that experimental features are on. It then runs Copilot offline against a local fake model, once for our configured `model` and once each for a Claude and a GPT-5 model, since each family gets its own prompt template. For each, it checks what Copilot would have sent: pi's intro, our `AGENTS.md`, every pi skill, an editing tool and no others beyond our list, no prompt blocks beyond the expected ones, and an estimated token count. An unexpected block after a Copilot update usually means new guidance to add to the extension's `guidance` list. It uses `copilot` from `PATH` (`COPILOT_BIN` and `COPILOT_TEST_MODELS` override the binary and models).
+The check below needs no GitHub account or model, and nothing leaves the machine. It confirms the links resolve into this repo and that experimental features are on. It then runs Copilot offline against a local fake model, once for our configured `model` and once each for a Claude and a GPT-5 model, since each family gets its own prompt template. For each, it checks what Copilot would have sent: pi's intro, our `AGENTS.md`, every pi skill, an editing tool and no others beyond our list, no prompt blocks beyond the expected ones, and an estimated token count. An unexpected block after a Copilot update usually means new guidance to add to the extension's `guidance` list.
 
 ```bash
 node tests/test_copilot_prompt.mjs
 ```
 
-In an interactive session, the startup line listing "Disabled tools" shows the extension is active. `/env` lists `pi-prompt (running, user)` with the instructions file and skills, and `/context` should show roughly 2–2.5k tokens of system prompt and 1–1.6k of tool definitions, depending on the model. Run it from a folder without its own instructions: a repository's `AGENTS.md`, `CLAUDE.md` or `.github` Copilot instructions count toward the system prompt too (this repo's `AGENTS.md` adds about 4.5k), and `/env` lists every instruction file loaded. If an organization policy blocks offline mode, use these in-session checks instead.
+It runs the first `copilot` on `PATH` and prints which binary and version that is. Scripts don't see the `.zshrc` alias to Homebrew's Copilot, so if another `copilot` comes first (`type -a copilot` lists them), point it at the right one with `COPILOT_BIN=/opt/homebrew/bin/copilot`. `COPILOT_TEST_MODELS` overrides the models.
+
+Online sessions can add prompt content that offline runs never see, such as organization instructions, MCP server instructions, an attached IDE or memories. To check a real session, write its trace (including message content) to a local file, send one message, exit, and check the trace. This prints every block of the system prompt with its approximate size, and lists the headings of each instruction file:
+
+```bash
+COPILOT_OTEL_FILE_EXPORTER_PATH=/tmp/copilot-otel.jsonl OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true copilot
+node tests/test_copilot_prompt.mjs --otel /tmp/copilot-otel.jsonl
+```
+
+The trace contains the prompt and conversation, so delete it afterwards. In an interactive session, the startup line listing "Disabled tools" shows the extension is active. `/env` lists `pi-prompt (running, user)` with the instruction files and skills, and `/context` shows token use counted by the model's own tokenizer: offline, about 2.3k of system prompt and 1.6k of tools for Claude, and 1.9k and 1.0k for GPT-5. A repository's `AGENTS.md`, `CLAUDE.md` or `.github` Copilot instructions add to the system prompt (this repo's `AGENTS.md` adds about 4.5k).
 
 ## JiraTUI
 

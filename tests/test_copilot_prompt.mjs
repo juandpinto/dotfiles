@@ -1,12 +1,18 @@
-// Checks the deployed Copilot CLI setup (see README, "GitHub Copilot CLI")
-// without a GitHub account or a model: Copilot runs offline against a local
-// fake model that records the first request, and we check exactly what it
-// would have sent. Nothing leaves the machine. Copilot picks a different
-// prompt template and editing tools per model family, so each family runs.
+// Checks the deployed Copilot CLI setup (see README, "GitHub Copilot CLI").
+//
 //   node tests/test_copilot_prompt.mjs
-// COPILOT_BIN overrides the binary (default: copilot on PATH);
-// COPILOT_TEST_MODELS overrides the models (comma-separated).
-import { spawn } from "node:child_process";
+//     Runs Copilot offline against a local fake model that records the first
+//     request, once per model family (each gets its own prompt template and
+//     editing tools). Needs no GitHub account; nothing leaves the machine.
+//     COPILOT_BIN overrides the binary (default: copilot on PATH);
+//     COPILOT_TEST_MODELS overrides the models (comma-separated).
+//
+//   node tests/test_copilot_prompt.mjs --otel <file>
+//     Checks a real, online session instead, from a local trace written by
+//       COPILOT_OTEL_FILE_EXPORTER_PATH=<file> \
+//       OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true copilot
+//     and prints every block of its system prompt with its approximate size.
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
@@ -16,14 +22,69 @@ import { fileURLToPath } from "node:url";
 const repo = realpathSync(fileURLToPath(new URL("..", import.meta.url)));
 const deployed = process.env.COPILOT_HOME ?? join(homedir(), ".copilot");
 const entries = ["copilot-instructions.md", "skills", "extensions/pi-prompt"];
+const otelFile = process.argv[2] === "--otel" ? process.argv[3] : undefined;
 // Top-level prompt blocks we expect once the extension has trimmed it.
 const expectedBlocks = ["rules", "environment_context", "tools", "custom_instruction", "system_notifications", "session_context"];
+const allowedTools = ["bash", "view", "edit", "create", "apply_patch", "skill"];
 let failures = 0;
 
 function check(ok, label, hint = "") {
 	console.log(`${ok ? "ok  " : "FAIL"} ${label}${ok || !hint ? "" : ` (${hint})`}`);
 	if (!ok) failures++;
 }
+
+const tokens = (text) => Math.round(text.length / 4); // rough, tokenizer-free
+
+/** Top-level <blocks> (opening tag at a line start or right after a closing tag). */
+function topLevelBlocks(system) {
+	const opener = /(?:^|(?<=<\/[a-z_]+>))[ \t]*<([a-z_]+)>/gm;
+	const blocks = [];
+	let cursor = 0;
+	let loose = "";
+	for (let match; (opener.lastIndex = cursor), (match = opener.exec(system)); ) {
+		const tag = match[1];
+		const start = match.index + match[0].indexOf("<");
+		const close = system.indexOf(`</${tag}>`, start);
+		const end = close === -1 ? system.length : close + tag.length + 3;
+		loose += system.slice(cursor, start);
+		blocks.push({ tag, text: system.slice(start, end) });
+		cursor = end;
+	}
+	return { blocks, loose: loose + system.slice(cursor) };
+}
+
+function printOutline(system) {
+	const { blocks, loose } = topLevelBlocks(system);
+	console.log("\nSystem prompt outline (approximate tokens):");
+	console.log(`${String(tokens(loose.trim())).padStart(7)}  (text outside blocks)`);
+	for (const { tag, text } of blocks) {
+		const headings = tag === "custom_instruction" ? text.split("\n").filter((line) => /^#{1,2} /.test(line)) : [];
+		const note = expectedBlocks.includes(tag) ? "" : "   <- unexpected";
+		console.log(`${String(tokens(text)).padStart(7)}  <${tag}>${note}${headings.length ? `: ${headings.join(" | ")}` : ""}`);
+	}
+}
+
+function checkPrompt(system, tools, toolDefinitions) {
+	const instructions = readFileSync(join(deployed, "copilot-instructions.md"), "utf8").split("\n")[0];
+	const skills = readdirSync(join(deployed, "skills"), { withFileTypes: true }).filter((d) => !d.name.startsWith("."));
+	const unexpected = topLevelBlocks(system).blocks.map((b) => b.tag).filter((tag) => !expectedBlocks.includes(tag));
+
+	check(system.includes("operating inside GitHub Copilot CLI"), "pi-style intro replaces Copilot's");
+	check(system.includes(instructions), `AGENTS.md is included ("${instructions}")`);
+	const missing = skills.filter((skill) => !system.includes(`<name>${skill.name}</name>`)).map((skill) => skill.name);
+	check(missing.length === 0, `all ${skills.length} pi skills are listed`, `missing: ${missing.join(", ")}`);
+	check(!system.includes("customize-cloud-agent"), "Copilot's built-in skills are left out");
+	check(unexpected.length === 0, "only expected prompt blocks remain", `unexpected: ${unexpected.join(", ")}; see the outline`);
+	const extra = tools.filter((tool) => !allowedTools.includes(tool));
+	check(extra.length === 0, `tools: ${tools.join(", ")}`, `unexpected: ${extra.join(", ")}`);
+	check(tools.includes("edit") || tools.includes("apply_patch"), "the model has a file-editing tool");
+	const estimate = tokens(system) + tokens(JSON.stringify(toolDefinitions));
+	check(estimate < 6000, `about ${estimate} tokens of system prompt and tools (default is ~15k)`);
+	return unexpected.length === 0;
+}
+
+const toolName = (tool) => tool.name ?? tool.function?.name ?? tool.custom?.name;
+const textOf = (content) => (typeof content === "string" ? content : (content ?? []).map((part) => part.text ?? part.content ?? "").join("\n"));
 
 // ── Deployment: links into this repo, and user extensions enabled ───────
 for (const entry of entries) {
@@ -38,7 +99,41 @@ try {
 check(settings.experimental === true, "experimental is enabled in ~/.copilot/settings.json", "copilot config experimental true");
 if (failures > 0) process.exit(1);
 
-// ── Requests: one offline turn per model against a recording fake model ─
+// ── A real session, from its OpenTelemetry trace ────────────────────────
+if (otelFile) {
+	const records = readFileSync(otelFile, "utf8")
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => JSON.parse(line).attributes ?? {});
+	const request = records.filter((a) => a["gen_ai.system_instructions"] && a["gen_ai.tool.definitions"]).at(-1);
+	if (!request) {
+		console.log(`FAIL no system prompt in ${otelFile} (was OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true set, and a message sent?)`);
+		process.exit(1);
+	}
+	const model = records.map((a) => a["gen_ai.request.model"]).filter(Boolean).at(-1) ?? "unknown model";
+	const system = JSON.parse(request["gen_ai.system_instructions"]).map((part) => textOf(part.content ?? part)).join("\n");
+	const toolDefinitions = JSON.parse(request["gen_ai.tool.definitions"]);
+	console.log(`\n── your session (${model})`);
+	checkPrompt(system, toolDefinitions.map(toolName), toolDefinitions);
+	printOutline(system);
+	process.exit(failures > 0 ? 1 : 0);
+}
+
+// ── Offline: one turn per model against a recording fake model ──────────
+// Shell aliases don't apply here, so name the binary we actually run.
+const bin = process.env.COPILOT_BIN ?? "copilot";
+const binPath = bin.includes("/")
+	? bin
+	: ((process.env.PATH ?? "").split(":").map((dir) => join(dir, bin)).find((path) => existsSync(path)) ?? bin);
+const version = spawnSync(binPath, ["--version"], { encoding: "utf8" });
+const versionLine = (version.stdout || version.stderr || String(version.error)).trim().split("\n")[0];
+check(
+	versionLine.includes("GitHub Copilot CLI"),
+	`testing ${binPath}: ${versionLine}`,
+	"not the Copilot CLI you use; set COPILOT_BIN, e.g. COPILOT_BIN=/opt/homebrew/bin/copilot",
+);
+if (failures > 0) process.exit(1);
+
 const scratch = mkdtempSync(join(tmpdir(), "copilot-prompt-"));
 const home = join(scratch, "home");
 mkdirSync(join(home, ".copilot", "extensions"), { recursive: true });
@@ -83,11 +178,7 @@ async function firstRequest(model) {
 		COPILOT_PROVIDER_MAX_OUTPUT_TOKENS: "4000",
 	};
 	for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"]) delete env[name];
-	const child = spawn(process.env.COPILOT_BIN ?? "copilot", ["-p", "hi"], {
-		cwd: join(scratch, "work"),
-		env,
-		stdio: ["ignore", "ignore", "pipe"],
-	});
+	const child = spawn(binPath, ["-p", "hi"], { cwd: join(scratch, "work"), env, stdio: ["ignore", "ignore", "pipe"] });
 	let stderr = "";
 	child.stderr.on("data", (chunk) => (stderr += chunk));
 	const timer = setTimeout(() => child.kill(), 120_000);
@@ -99,16 +190,11 @@ async function firstRequest(model) {
 	return { request: captured, status, stderr };
 }
 
-// ── What each model would have received ─────────────────────────────────
-const textOf = (content) => (typeof content === "string" ? content : (content ?? []).map((part) => part.text ?? "").join("\n"));
-const instructions = readFileSync(join(deployed, "copilot-instructions.md"), "utf8").split("\n")[0];
-const skills = readdirSync(join(deployed, "skills"), { withFileTypes: true }).filter((d) => !d.name.startsWith("."));
 const models = process.env.COPILOT_TEST_MODELS?.split(",") ?? [
 	...new Set([settings.model, "claude-sonnet-5.5", "gpt-5.6-luna"].filter((m) => m && m !== "auto")),
 ];
-
 for (const model of models) {
-	console.log(`\n── ${model}`);
+	console.log(`\n── ${model} (offline)`);
 	const { request, status, stderr } = await firstRequest(model);
 	if (!request) {
 		check(false, `Copilot sent no model request (exit ${status})`, stderr.trim().split("\n").slice(-3).join(" | "));
@@ -118,26 +204,7 @@ for (const model of models) {
 		.filter((m) => m.role === "system" || m.role === "developer")
 		.map((m) => textOf(m.content))
 		.join("\n");
-	const tools = request.tools.map((tool) => tool.function?.name ?? tool.custom?.name ?? tool.name);
-	// Opening tags at the start of a line or right after a closing tag, outside
-	// our own instructions and the skills list.
-	const outline = system
-		.replace(/<custom_instruction>[\s\S]*?<\/custom_instruction>/g, "<custom_instruction>")
-		.replace(/<available_skills>[\s\S]*?<\/available_skills>/g, "");
-	const blocks = [...outline.matchAll(/(?:^|<\/[a-z_]+>\s*)<([a-z_]+)>/gm)].map((m) => m[1]);
-	const unexpected = blocks.filter((block) => !expectedBlocks.includes(block));
-
-	check(system.includes("operating inside GitHub Copilot CLI"), "pi-style intro replaces Copilot's");
-	check(system.includes(instructions), `AGENTS.md is included ("${instructions}")`);
-	const missing = skills.filter((skill) => !system.includes(`<name>${skill.name}</name>`)).map((skill) => skill.name);
-	check(missing.length === 0, `all ${skills.length} pi skills are listed`, `missing: ${missing.join(", ")}`);
-	check(!system.includes("customize-cloud-agent"), "Copilot's built-in skills are left out");
-	check(unexpected.length === 0, "only expected prompt blocks remain", `unexpected: ${unexpected.join(", ")}; drop them in the extension if they're guidance`);
-	const extra = tools.filter((tool) => !["bash", "view", "edit", "create", "apply_patch", "skill"].includes(tool));
-	check(extra.length === 0, `tools: ${tools.join(", ")}`, `unexpected: ${extra.join(", ")}`);
-	check(tools.includes("edit") || tools.includes("apply_patch"), "the model has a file-editing tool");
-	const estimate = Math.round((system.length + JSON.stringify(request.tools).length) / 4);
-	check(estimate < 6000, `about ${estimate} tokens of system prompt and tools (default is ~15k)`);
+	if (!checkPrompt(system, request.tools.map(toolName), request.tools)) printOutline(system);
 }
 
 server.close();
