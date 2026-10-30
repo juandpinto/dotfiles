@@ -36,58 +36,95 @@ function check(ok, label, hint = "") {
 
 const tokens = (text) => Math.round(text.length / 4); // rough, tokenizer-free
 
-/** Top-level <blocks> (opening tag at a line start or right after a closing tag). */
-function topLevelBlocks(system) {
+/**
+ * The system prompt in order: top-level <blocks> (an opening tag at a line
+ * start or right after a closing tag) and the text between them (tag null).
+ */
+function promptItems(system) {
 	const opener = /(?:^|(?<=<\/[a-z_]+>))[ \t]*<([a-z_]+)>/gm;
-	const blocks = [];
-	const loose = [];
+	const items = [];
+	const pushText = (text) => text.trim() && items.push({ tag: null, text: text.trim() });
 	let cursor = 0;
 	for (let match; (opener.lastIndex = cursor), (match = opener.exec(system)); ) {
 		const tag = match[1];
 		const start = match.index + match[0].indexOf("<");
 		const close = system.indexOf(`</${tag}>`, start);
 		const end = close === -1 ? system.length : close + tag.length + 3;
-		loose.push(system.slice(cursor, start));
-		blocks.push({ tag, text: system.slice(start, end) });
+		pushText(system.slice(cursor, start));
+		items.push({ tag, text: system.slice(start, end) });
 		cursor = end;
 	}
-	loose.push(system.slice(cursor));
-	return { blocks, loose: loose.map((text) => text.trim()).filter(Boolean) };
+	pushText(system.slice(cursor));
+	// Untagged text is the intro, or *.instructions.md files (from
+	// ~/.copilot/instructions, .github/instructions or plugins), which Copilot
+	// injects untagged right after the <custom_instruction> blocks.
+	for (const [index, item] of items.entries()) {
+		if (item.tag) continue;
+		item.kind = isIntro(item.text) ? "intro" : items[index - 1]?.tag === "custom_instruction" ? "instructions" : "stray";
+	}
+	return items;
+}
+
+const isIntro = (text) => text.includes("operating inside GitHub Copilot CLI");
+
+/** Frontmatter name/description/applyTo and the first line of loose text. */
+function summarize(text) {
+	const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+	const fields = match ? match[1].split("\n").map((line) => line.trim()).filter((line) => /^(name|description|applyTo):/.test(line)) : [];
+	const body = (match ? match[2] : text).split("\n").map((line) => line.trim()).find((line) => line && line !== "---") ?? "";
+	return [...fields, body].filter(Boolean).map((line) => `"${line.slice(0, 80)}"`).join(" / ");
 }
 
 function printOutline(system) {
-	const { blocks, loose } = topLevelBlocks(system);
-	console.log("\nSystem prompt outline (approximate tokens):");
-	console.log(`${String(tokens(loose.join(""))).padStart(7)}  (text outside blocks)`);
-	for (const text of loose.filter((chunk) => tokens(chunk) >= 25)) {
-		console.log(`${String(tokens(text)).padStart(9)}  starting "${text.split("\n")[0].slice(0, 90)}"`);
-	}
-	for (const { tag, text } of blocks) {
+	console.log("\nSystem prompt outline, in order (approximate tokens):");
+	for (const { tag, kind, text } of promptItems(system)) {
+		const size = String(tokens(text)).padStart(7);
+		if (!tag) {
+			const label = { intro: "(intro)", instructions: `instruction files: ${summarize(text)}` }[kind];
+			console.log(`${size}  ${label ?? `text outside blocks: ${summarize(text)}   <- unexpected`}`);
+			continue;
+		}
 		const headings = tag === "custom_instruction" ? text.split("\n").filter((line) => /^#{1,2} /.test(line)) : [];
 		const skills = tag === "tools" ? [...text.matchAll(/<name>([^<]+)<\/name>/g)].map((match) => match[1]) : [];
 		const details = [...headings, ...(skills.length ? [`${skills.length} skills: ${skills.join(", ")}`] : [])];
 		const note = expectedBlocks.includes(tag) ? "" : "   <- unexpected";
-		console.log(`${String(tokens(text)).padStart(7)}  <${tag}>${note}${details.length ? `: ${details.join(" | ")}` : ""}`);
+		console.log(`${size}  <${tag}>${note}${details.length ? `: ${details.join(" | ")}` : ""}`);
 	}
 }
 
+/** Runs the prompt checks; returns false when the outline would help. */
 function checkPrompt(system, tools, toolDefinitions) {
 	const instructions = readFileSync(join(deployed, "copilot-instructions.md"), "utf8").split("\n")[0];
-	const skills = readdirSync(join(deployed, "skills"), { withFileTypes: true }).filter((d) => !d.name.startsWith("."));
-	const unexpected = topLevelBlocks(system).blocks.map((b) => b.tag).filter((tag) => !expectedBlocks.includes(tag));
+	const skills = readdirSync(join(deployed, "skills"), { withFileTypes: true }).filter((d) => !d.name.startsWith(".")).map((d) => d.name);
+	const items = promptItems(system);
+	const unexpected = items.filter((item) => item.tag && !expectedBlocks.includes(item.tag)).map((item) => item.tag);
+	const stray = items.filter((item) => item.kind === "stray");
+	// Other instructions (a repository's AGENTS.md, a plugin's or our own
+	// *.instructions.md files) aren't Copilot's, and pi would load its
+	// equivalents too, so they don't count toward the size.
+	const otherInstructions = items.filter(
+		(item) => (item.tag === "custom_instruction" && !item.text.includes(instructions)) || item.kind === "instructions",
+	);
+	const listed = [...system.matchAll(/<name>([^<]+)<\/name>/g)].map((match) => match[1]);
+	const otherSkills = listed.filter((name) => !skills.includes(name));
 
 	check(system.includes("operating inside GitHub Copilot CLI"), "pi-style intro replaces Copilot's");
 	check(system.includes(instructions), `AGENTS.md is included ("${instructions}")`);
-	const missing = skills.filter((skill) => !system.includes(`<name>${skill.name}</name>`)).map((skill) => skill.name);
-	check(missing.length === 0, `all ${skills.length} pi skills are listed`, `missing: ${missing.join(", ")}`);
+	const missing = skills.filter((skill) => !listed.includes(skill));
+	const others = otherSkills.length ? ` (plus ${otherSkills.length} skill${otherSkills.length === 1 ? "" : "s"} from elsewhere)` : "";
+	check(missing.length === 0, `all ${skills.length} pi skills are listed${others}`, `missing: ${missing.join(", ")}`);
 	check(!system.includes("customize-cloud-agent"), "Copilot's built-in skills are left out");
 	check(unexpected.length === 0, "only expected prompt blocks remain", `unexpected: ${unexpected.join(", ")}; see the outline`);
+	const strayTokens = tokens(stray.map((item) => item.text).join(""));
+	check(stray.length === 0, "no text outside blocks besides the intro", `${strayTokens} tokens, starting ${stray[0] && summarize(stray[0].text)}; see the outline`);
 	const extra = tools.filter((tool) => !allowedTools.includes(tool));
 	check(extra.length === 0, `tools: ${tools.join(", ")}`, `unexpected: ${extra.join(", ")}`);
 	check(tools.includes("edit") || tools.includes("apply_patch"), "the model has a file-editing tool");
-	const estimate = tokens(system) + tokens(JSON.stringify(toolDefinitions));
-	check(estimate < 6000, `about ${estimate} tokens of system prompt and tools (default is ~15k)`);
-	return unexpected.length === 0;
+	const other = tokens(otherInstructions.map((item) => item.text).join(""));
+	const estimate = tokens(system) + tokens(JSON.stringify(toolDefinitions)) - other;
+	const otherNote = other ? `, plus ${other} of other instructions` : "";
+	check(estimate < 6000, `about ${estimate} tokens of system prompt and tools${otherNote} (default is ~15k)`);
+	return unexpected.length === 0 && stray.length === 0;
 }
 
 const toolName = (tool) => tool.name ?? tool.function?.name ?? tool.custom?.name;
