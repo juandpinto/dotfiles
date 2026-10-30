@@ -128,7 +128,7 @@ node tests/test_copilot_prompt.mjs
 
 It runs the first `copilot` on `PATH` and prints which binary and version that is. Scripts don't see the `.zshrc` alias to Homebrew's Copilot, so if another `copilot` comes first (`type -a copilot` lists them), point it at the right one with `COPILOT_BIN=/opt/homebrew/bin/copilot`. `COPILOT_TEST_MODELS` overrides the models.
 
-Online sessions can add prompt content that offline runs never see, such as organization instructions, MCP server instructions, an attached IDE or memories. To check a real session, write its trace (including message content) to a local file, send one message, exit, and check the trace. This prints every block of the system prompt with its approximate size, and lists the headings of each instruction file:
+Online sessions can add prompt content that offline runs never see, such as organization instructions, MCP server instructions, an attached IDE or memories. To check a real session, write its trace (including message content) to a local file, send one message, exit, and check the trace. This prints every block of the system prompt with its approximate size and the headings of each instruction file, then the context injected into the messages, the connected MCP servers, and the input token count the API reported:
 
 ```bash
 COPILOT_OTEL_FILE_EXPORTER_PATH=/tmp/copilot-otel.jsonl OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true copilot

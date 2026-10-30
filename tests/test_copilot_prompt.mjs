@@ -101,21 +101,41 @@ if (failures > 0) process.exit(1);
 
 // ── A real session, from its OpenTelemetry trace ────────────────────────
 if (otelFile) {
-	const records = readFileSync(otelFile, "utf8")
+	if (!existsSync(otelFile)) {
+		console.log(`FAIL no trace at ${otelFile} (use the same path as COPILOT_OTEL_FILE_EXPORTER_PATH)`);
+		process.exit(1);
+	}
+	const spans = readFileSync(otelFile, "utf8")
 		.split("\n")
 		.filter(Boolean)
 		.map((line) => JSON.parse(line).attributes ?? {});
-	const request = records.filter((a) => a["gen_ai.system_instructions"] && a["gen_ai.tool.definitions"]).at(-1);
-	if (!request) {
+	const calls = spans.filter((a) => a["gen_ai.operation.name"] === "chat" && a["gen_ai.system_instructions"]);
+	const call = calls[0] ?? spans.find((a) => a["gen_ai.system_instructions"] && a["gen_ai.tool.definitions"]);
+	if (!call) {
 		console.log(`FAIL no system prompt in ${otelFile} (was OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true set, and a message sent?)`);
 		process.exit(1);
 	}
-	const model = records.map((a) => a["gen_ai.request.model"]).filter(Boolean).at(-1) ?? "unknown model";
-	const system = JSON.parse(request["gen_ai.system_instructions"]).map((part) => textOf(part.content ?? part)).join("\n");
-	const toolDefinitions = JSON.parse(request["gen_ai.tool.definitions"]);
-	console.log(`\n── your session (${model})`);
+	const system = JSON.parse(call["gen_ai.system_instructions"]).map((part) => textOf(part.content ?? part)).join("\n");
+	const toolDefinitions = JSON.parse(call["gen_ai.tool.definitions"] ?? "[]");
+	console.log(`\n── your session (${call["gen_ai.request.model"] ?? "unknown model"}; first of ${calls.length} model calls)`);
 	checkPrompt(system, toolDefinitions.map(toolName), toolDefinitions);
 	printOutline(system);
+
+	// Context Copilot injects into the conversation rather than the system prompt.
+	console.log("\nMessages sent with it (approximate tokens):");
+	for (const message of JSON.parse(call["gen_ai.input.messages"] ?? "[]")) {
+		const text = (message.parts ?? []).map((part) => (typeof part.content === "string" ? part.content : JSON.stringify(part))).join("\n");
+		const tags = [...new Set([...text.matchAll(/<([a-z_]+)>/g)].map((match) => `<${match[1]}>`))];
+		console.log(`${String(tokens(text)).padStart(7)}  ${message.role}${tags.length ? `: ${tags.join(" ")}` : ""}`);
+	}
+	const mcpServers = spans
+		.map((a) => a["github.copilot.context.mcp_server_names"])
+		.filter(Boolean)
+		.map((names) => [typeof names === "string" && names.startsWith("[") ? JSON.parse(names) : names].flat())
+		.find((names) => names.length);
+	console.log(`\nMCP servers connected: ${mcpServers?.join(", ") ?? "none"}`);
+	const input = call["gen_ai.usage.input_tokens"];
+	if (input) console.log(`Input tokens reported by the API for this call (system prompt, tools and messages): ${input}`);
 	process.exit(failures > 0 ? 1 : 0);
 }
 
