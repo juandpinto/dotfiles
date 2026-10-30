@@ -143,6 +143,7 @@ assert.doesNotMatch(frontApp, /#[0-9a-fA-F]{6}/, 'Colors must remain theme-owned
 assert.match(frontApp, /ToplevelManager\.activeToplevel/);
 assert.match(frontApp, /DesktopEntries\.(byId|heuristicLookup)/);
 assert.match(frontApp, /\(\?:brave\|chrome\|chromium\|msedge\|vivaldi\)-/, 'Web app windows resolve to their launcher');
+assert.ok(frontApp.includes('/^org\\.omarchy\\.(.+)$/'), 'Omarchy TUI windows (org.omarchy.<program>) show their program');
 const lint = execFileSync('/usr/lib/qt6/bin/qmllint', ['-I', '/usr/share/omarchy/shell', '-I', '/usr/lib/qt6/qml',
     join(source, 'omarchy/bar/modules/front-app.qml')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 assert.doesNotMatch(lint, /^Error:/m, lint);

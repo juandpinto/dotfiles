@@ -39,7 +39,13 @@ Item {
     var web = webAppName(appId)
     if (web) return web
     var entry = DesktopEntries.byId(appId) || DesktopEntries.byId(appId.toLowerCase()) || DesktopEntries.heuristicLookup(appId)
-    return entry && entry.name ? entry.name : appId
+    if (entry && entry.name) return entry.name
+    // Omarchy's TUI launcher names terminal windows org.omarchy.<program>:
+    // show the program's own launcher name (aerc, Yazi), else the program.
+    var tui = appId.match(/^org\.omarchy\.(.+)$/)
+    if (!tui) return appId
+    var program = DesktopEntries.byId(tui[1])
+    return program && program.name ? program.name : tui[1]
   }
 
   visible: appName !== "" && bar && !bar.vertical
